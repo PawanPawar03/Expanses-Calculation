@@ -3,7 +3,7 @@ services:
     name: whitehouse-expense-server
     env: node
     plan: free
-    buildCommand: npm run install:all && npm run build
+    buildCommand: npm run install:all && npm run build && npm run seed
     startCommand: npm start
     envVars:
       - key: PORT
