@@ -44,17 +44,6 @@
 
 ---
 
-## 🔑 Demo Credentials
-
-| Role | Name | Email | Password | Permissions |
-|---|---|---|---|---|
-| 🛡️ **Admin** | Admin | `admin@whitehouse.com` | `admin123` | Master control, Member management, Settings, Audit logs |
-| 👤 **User** | Pawan Pawar | `pawan@whitehouse.com` | `pawan123` | Add & view expenses, personal stats, member summary |
-| 👤 **User** | Rahul Sharma | `rahul@whitehouse.com` | `rahul123` | Add & view expenses, personal stats, member summary |
-| 👤 **User** | Amit Verma | `amit@whitehouse.com` | `amit123` | Add & view expenses, personal stats, member summary |
-| 👤 **User** | Sneha Patel | `sneha@whitehouse.com` | `sneha123` | Add & view expenses, personal stats, member summary |
-
-> 💡 **Quick Login**: The Login page features convenient **1-Click Quick Demo Login** buttons to instantly test any role.
 
 ---
 
