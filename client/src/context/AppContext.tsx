@@ -124,15 +124,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (!isAuthenticated) return;
 
     const interval = setInterval(() => {
-      triggerRefresh();
-    }, 6000); // Live poll every 6 seconds
+      if (!isAddExpenseModalOpen) {
+        triggerRefresh();
+      }
+    }, 8000); // Live poll every 8 seconds when modal is not open
 
     const handleFocus = () => {
-      triggerRefresh();
+      if (!isAddExpenseModalOpen) {
+        triggerRefresh();
+      }
     };
 
     const handleStorage = (e: StorageEvent) => {
-      if (e.key?.startsWith('wh_')) {
+      if (e.key?.startsWith('wh_') && !isAddExpenseModalOpen) {
         triggerRefresh();
       }
     };
@@ -145,7 +149,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       window.removeEventListener('focus', handleFocus);
       window.removeEventListener('storage', handleStorage);
     };
-  }, [isAuthenticated, triggerRefresh]);
+  }, [isAuthenticated, isAddExpenseModalOpen, triggerRefresh]);
 
   const updateSettingsState = (newSettings: Partial<AppSettings>) => {
     setSettings((prev) => ({ ...prev, ...newSettings }));

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Modal } from '../ui/Modal';
 import { Input } from '../ui/Input';
 import { Select } from '../ui/Select';
@@ -36,21 +36,27 @@ export const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Sync state whenever modal opens or initialExpense changes
+  const prevOpenRef = useRef(false);
+  const prevExpenseIdRef = useRef<number | undefined>(undefined);
+
+  // Initialize form state ONLY on modal open or when editing a different expense record
   useEffect(() => {
-    if (isOpen) {
+    const justOpened = isOpen && !prevOpenRef.current;
+    const expenseChanged = initialExpense?.id !== prevExpenseIdRef.current;
+
+    if (isOpen && (justOpened || expenseChanged)) {
       setError(null);
       if (initialExpense) {
-        setTitle(initialExpense.title);
-        setAmount(String(initialExpense.amount));
-        setCategoryId(String(initialExpense.category_id));
-        setPaidByUserId(String(initialExpense.paid_by_user_id));
+        setTitle(initialExpense.title || '');
+        setAmount(initialExpense.amount ? String(initialExpense.amount) : '');
+        setCategoryId(initialExpense.category_id ? String(initialExpense.category_id) : '');
+        setPaidByUserId(initialExpense.paid_by_user_id ? String(initialExpense.paid_by_user_id) : '');
         setLocation(initialExpense.location || '');
         setDescription(initialExpense.description || '');
-        setExpenseDate(initialExpense.expense_date);
-        setExpenseTime(initialExpense.expense_time);
+        setExpenseDate(initialExpense.expense_date || getTodayISTDateString());
+        setExpenseTime(initialExpense.expense_time || getCurrentISTTimeString());
       } else {
-        // Reset to defaults with current IST date/time
+        // Reset to initial clean fields
         setTitle('');
         setAmount('');
         setCategoryId(categories[0]?.id ? String(categories[0].id) : '');
@@ -61,7 +67,10 @@ export const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({
         setExpenseTime(getCurrentISTTimeString());
       }
     }
-  }, [isOpen, initialExpense, categories, members, user]);
+
+    prevOpenRef.current = isOpen;
+    prevExpenseIdRef.current = initialExpense?.id;
+  }, [isOpen, initialExpense]); // Removed categories & members from deps to prevent auto-resetting while typing
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
