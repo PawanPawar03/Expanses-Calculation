@@ -3,9 +3,10 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
 import { api } from '../../lib/api';
+import { initMockDb } from '../../lib/mockApi';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
-import { Lock, Mail, ArrowRight, ShieldCheck, UserCheck } from 'lucide-react';
+import { Lock, Mail, ArrowRight, ShieldCheck, UserCheck, RefreshCw } from 'lucide-react';
 
 export const LoginPage: React.FC = () => {
   const { user, isAuthenticated, login } = useAuth();
@@ -75,6 +76,23 @@ export const LoginPage: React.FC = () => {
     setError(null);
   };
 
+  const handleResetCache = () => {
+    try {
+      localStorage.removeItem('wh_cloud_api_url');
+      localStorage.removeItem('wh_deleted_user_emails');
+      localStorage.removeItem('wh_mock_users');
+      localStorage.removeItem('whitehouse_token');
+      localStorage.removeItem('whitehouse_user');
+      initMockDb();
+      setEmail('admin@whitehouse.com');
+      setPassword('admin123');
+      setError(null);
+      showToast('Cache refreshed! Ready to log in.', 'success');
+    } catch (err) {
+      console.error('Cache reset error:', err);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
@@ -91,9 +109,19 @@ export const LoginPage: React.FC = () => {
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-white py-8 px-6 sm:px-10 rounded-3xl border border-slate-200/80 shadow-xl space-y-6">
-          <div className="border-b border-slate-100 pb-4">
-            <h3 className="text-lg font-bold text-slate-900 tracking-tight">Sign in to your account</h3>
-            <p className="text-xs text-slate-500">Access shared household expenses and reports</p>
+          <div className="border-b border-slate-100 pb-4 flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-bold text-slate-900 tracking-tight">Sign in to your account</h3>
+              <p className="text-xs text-slate-500">Access shared household expenses and reports</p>
+            </div>
+            <button
+              type="button"
+              onClick={handleResetCache}
+              title="Reset Cache / Fix Login"
+              className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all"
+            >
+              <RefreshCw className="w-4 h-4" />
+            </button>
           </div>
 
           {/* 1-Click Quick Fill Presets */}
@@ -105,7 +133,7 @@ export const LoginPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setCredentials('admin@whitehouse.com', 'admin123')}
-                className="flex items-center gap-2 p-2 rounded-xl bg-white border border-slate-200 hover:border-emerald-500 hover:bg-emerald-50/50 transition-all text-left shadow-sm group"
+                className="flex items-center gap-2 p-2.5 rounded-xl bg-white border border-slate-200 hover:border-emerald-500 hover:bg-emerald-50/50 transition-all text-left shadow-sm group"
               >
                 <div className="h-7 w-7 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-xs">
                   <ShieldCheck className="w-4 h-4" />
@@ -119,7 +147,7 @@ export const LoginPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setCredentials('pawan@whitehouse.com', 'pawan123')}
-                className="flex items-center gap-2 p-2 rounded-xl bg-white border border-slate-200 hover:border-emerald-500 hover:bg-emerald-50/50 transition-all text-left shadow-sm group"
+                className="flex items-center gap-2 p-2.5 rounded-xl bg-white border border-slate-200 hover:border-emerald-500 hover:bg-emerald-50/50 transition-all text-left shadow-sm group"
               >
                 <div className="h-7 w-7 rounded-lg bg-teal-100 text-teal-700 flex items-center justify-center font-bold text-xs">
                   <UserCheck className="w-4 h-4" />
@@ -133,8 +161,15 @@ export const LoginPage: React.FC = () => {
           </div>
 
           {error && (
-            <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs font-medium">
-              {error}
+            <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs font-medium space-y-2">
+              <p>{error}</p>
+              <button
+                type="button"
+                onClick={handleResetCache}
+                className="text-xs font-bold text-rose-800 underline hover:text-rose-950 block"
+              >
+                👉 Click here to Reset Cache & Fix Login Credentials
+              </button>
             </div>
           )}
 

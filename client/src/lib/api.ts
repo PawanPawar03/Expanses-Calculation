@@ -1,4 +1,4 @@
-import { handleMockApiRequest } from './mockApi';
+import { handleMockApiRequest, initMockDb } from './mockApi';
 
 export const isGitHubPagesStatic = (): boolean => {
   if (typeof window === 'undefined') return false;
@@ -63,36 +63,43 @@ export async function request<T = any>(
     const data = isJson ? await response.json().catch(() => ({})) : {};
 
     if (!response.ok) {
-      // If 404/405/non-JSON on default proxy, fallback to mock DB
+      // If remote backend failed or returned 401/404 on login, fallback gracefully to mock DB
+      if (cleanEndpoint === '/auth/login' || cleanEndpoint === '/auth/me') {
+        const bodyObj = options.body ? JSON.parse(options.body as string) : undefined;
+        try {
+          const fallbackRes = handleMockApiRequest(cleanEndpoint, options.method || 'GET', bodyObj);
+          if (fallbackRes && fallbackRes.success) {
+            return fallbackRes as T;
+          }
+        } catch {
+          // Continue to throw server error if mock also fails
+        }
+      }
+
       if ((response.status === 404 || response.status === 405 || !isJson) && !hasCustomBackend) {
         const bodyObj = options.body ? JSON.parse(options.body as string) : undefined;
         return handleMockApiRequest(cleanEndpoint, options.method || 'GET', bodyObj);
       }
 
-      if (response.status === 401) {
-        if (cleanEndpoint !== '/auth/login' && cleanEndpoint !== '/auth/register') {
-          localStorage.removeItem('whitehouse_token');
-          localStorage.removeItem('whitehouse_user');
-        }
+      if (response.status === 401 && cleanEndpoint !== '/auth/login' && cleanEndpoint !== '/auth/register') {
+        localStorage.removeItem('whitehouse_token');
+        localStorage.removeItem('whitehouse_user');
       }
+
       const errMsg = data.message || (typeof data.error === 'string' ? data.error : '') || 'Invalid request';
       throw new ApiError(errMsg, response.status, data);
     }
 
     return data as T;
   } catch (err: any) {
-    if (err instanceof ApiError) {
-      // If error is from an unconfigured backend, fallback to mock DB
-      if (!hasCustomBackend) {
-        const bodyObj = options.body ? JSON.parse(options.body as string) : undefined;
-        return handleMockApiRequest(cleanEndpoint, options.method || 'GET', bodyObj);
-      }
-      throw err;
-    }
-    // Network failure (server down/offline) -> Fallback to mock DB
+    // If network or server error, fallback to mock DB
     if (typeof window !== 'undefined') {
       const bodyObj = options.body ? JSON.parse(options.body as string) : undefined;
-      return handleMockApiRequest(cleanEndpoint, options.method || 'GET', bodyObj);
+      try {
+        return handleMockApiRequest(cleanEndpoint, options.method || 'GET', bodyObj);
+      } catch (mockErr: any) {
+        throw new Error(mockErr.message || err.message || 'Request failed');
+      }
     }
     throw err;
   }
