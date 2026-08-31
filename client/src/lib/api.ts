@@ -1,3 +1,5 @@
+import { handleMockApiRequest } from './mockApi';
+
 const API_BASE = '/api';
 
 export class ApiError extends Error {
@@ -24,25 +26,39 @@ export async function request<T = any>(
 
   const url = `${API_BASE}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
 
-  const response = await fetch(url, {
-    ...options,
-    headers,
-  });
+  try {
+    const response = await fetch(url, {
+      ...options,
+      headers,
+    });
 
-  const data = await response.json().catch(() => ({}));
+    const data = await response.json().catch(() => ({}));
 
-  if (!response.ok) {
-    // If 401 Unauthorized, automatically clear token if invalid
-    if (response.status === 401) {
-      if (endpoint !== '/auth/login' && endpoint !== '/auth/register') {
-        localStorage.removeItem('whitehouse_token');
-        localStorage.removeItem('whitehouse_user');
+    if (!response.ok) {
+      // If 404 or server not present on static host (GitHub Pages), fallback to mock API
+      if (response.status === 404 && typeof window !== 'undefined') {
+        const bodyObj = options.body ? JSON.parse(options.body as string) : undefined;
+        return handleMockApiRequest(endpoint, options.method || 'GET', bodyObj);
       }
-    }
-    throw new ApiError(data.message || 'An error occurred during request', response.status, data);
-  }
 
-  return data as T;
+      if (response.status === 401) {
+        if (endpoint !== '/auth/login' && endpoint !== '/auth/register') {
+          localStorage.removeItem('whitehouse_token');
+          localStorage.removeItem('whitehouse_user');
+        }
+      }
+      throw new ApiError(data.message || 'An error occurred during request', response.status, data);
+    }
+
+    return data as T;
+  } catch (err: any) {
+    // If fetch failed completely (e.g. static GitHub Pages without backend), use Mock DB
+    if (typeof window !== 'undefined') {
+      const bodyObj = options.body ? JSON.parse(options.body as string) : undefined;
+      return handleMockApiRequest(endpoint, options.method || 'GET', bodyObj);
+    }
+    throw err;
+  }
 }
 
 export const api = {

@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { HashRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { AppProvider } from './context/AppContext';
 import { AppLayout } from './components/layout/AppLayout';
@@ -80,7 +80,7 @@ const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return <>{children}</>;
 };
 
-// Root index redirect based on user role
+// Root index redirect based on user role - redirects directly to /login if unauthenticated
 const RootRedirect: React.FC = () => {
   const { isAuthenticated, isAdmin, isLoading } = useAuth();
 
@@ -91,7 +91,7 @@ const RootRedirect: React.FC = () => {
 
 export const App: React.FC = () => {
   return (
-    <BrowserRouter>
+    <HashRouter>
       <AuthProvider>
         <AppProvider>
           <Routes>
@@ -100,7 +100,7 @@ export const App: React.FC = () => {
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
 
-            {/* Root Redirect */}
+            {/* Root Redirect - Opens Login Page Directly */}
             <Route path="/" element={<RootRedirect />} />
 
             {/* User Protected Routes with AppLayout Shell */}
@@ -142,11 +142,11 @@ export const App: React.FC = () => {
               <Route path="/admin/settings" element={<AdminSettingsPage />} />
             </Route>
 
-            {/* Fallback Catch-all Route */}
+            {/* Fallback Catch-all Route -> Login / Dashboard */}
             <Route path="*" element={<RootRedirect />} />
           </Routes>
         </AppProvider>
       </AuthProvider>
-    </BrowserRouter>
+    </HashRouter>
   );
 };
