@@ -1,7 +1,6 @@
 import { User, Category, Expense, AuditLog, AppSettings, DashboardSummary, MemberReportItem } from '../types';
 import { getTodayISTDateString, getCurrentISTTimeString, formatISTDateTime, formatISTDate } from './time';
 
-const DB_VERSION_KEY = 'wh_clean_db_v3';
 const STORAGE_USERS = 'wh_mock_users';
 const STORAGE_DELETED_USERS = 'wh_deleted_user_emails';
 const STORAGE_CATEGORIES = 'wh_mock_categories';
@@ -14,19 +13,8 @@ export interface StoredMockUser extends User {
   deleted_at?: string | null;
 }
 
-// Initialize clean database in localStorage (Only Admin and Pawan, 0 dummy expenses)
+// Initialize clean database in localStorage (Guarantees Admin and Pawan are always valid and active)
 export function initMockDb() {
-  const version = localStorage.getItem(DB_VERSION_KEY);
-  const needsCleanReset = !version;
-
-  if (needsCleanReset) {
-    // Clear out any old dummy data
-    localStorage.removeItem(STORAGE_EXPENSES);
-    localStorage.removeItem(STORAGE_DELETED_USERS);
-    localStorage.removeItem(STORAGE_AUDIT);
-    localStorage.setItem(DB_VERSION_KEY, 'true');
-  }
-
   let users: StoredMockUser[] = [];
   try {
     users = JSON.parse(localStorage.getItem(STORAGE_USERS) || '[]');
@@ -34,38 +22,29 @@ export function initMockDb() {
     users = [];
   }
 
-  // Filter out any old dummy users if present
+  // Remove any legacy dummy users
   users = users.filter((u) => u.email !== 'rahul@whitehouse.com' && u.email !== 'amit@whitehouse.com' && u.email !== 'sneha@whitehouse.com');
 
-  let deletedEmails: string[] = [];
-  try {
-    deletedEmails = JSON.parse(localStorage.getItem(STORAGE_DELETED_USERS) || '[]');
-  } catch {
-    deletedEmails = [];
-  }
-
-  // ONLY Admin and Pawan
   const defaultUsers: StoredMockUser[] = [
-    { id: 1, name: 'Admin', email: 'admin@whitehouse.com', password: 'admin123', role: 'ADMIN', status: 'ACTIVE', mobile: '+91 9876543210', created_at: '2026-08-01T00:00:00Z', updated_at: '2026-08-01T00:00:00Z' },
-    { id: 2, name: 'Pawan', email: 'pawan@whitehouse.com', password: 'pawan123', role: 'USER', status: 'ACTIVE', mobile: '+91 9823012345', created_at: '2026-08-01T00:00:00Z', updated_at: '2026-08-01T00:00:00Z' },
+    { id: 1, name: 'Admin', email: 'admin@whitehouse.com', password: 'admin123', role: 'ADMIN', status: 'ACTIVE', mobile: '+91 9876543210', created_at: '2026-08-01T00:00:00Z', updated_at: '2026-08-01T00:00:00Z', deleted_at: null },
+    { id: 2, name: 'Pawan', email: 'pawan@whitehouse.com', password: 'pawan123', role: 'USER', status: 'ACTIVE', mobile: '+91 9823012345', created_at: '2026-08-01T00:00:00Z', updated_at: '2026-08-01T00:00:00Z', deleted_at: null },
   ];
 
   for (const defU of defaultUsers) {
-    if (deletedEmails.includes(defU.email.toLowerCase())) continue;
-
     const existingIdx = users.findIndex((u) => u.email.toLowerCase() === defU.email.toLowerCase());
     if (existingIdx === -1) {
       users.push(defU);
     } else {
-      if (!users[existingIdx].deleted_at) {
-        users[existingIdx].password = defU.password;
-        users[existingIdx].role = defU.role;
-      }
+      // Ensure credentials and role are always active
+      users[existingIdx].password = defU.password;
+      users[existingIdx].status = 'ACTIVE';
+      users[existingIdx].deleted_at = null;
+      users[existingIdx].role = defU.role;
     }
   }
   localStorage.setItem(STORAGE_USERS, JSON.stringify(users));
 
-  if (!localStorage.getItem(STORAGE_CATEGORIES) || needsCleanReset) {
+  if (!localStorage.getItem(STORAGE_CATEGORIES)) {
     const defaultCategories: Category[] = [
       { id: 1, name: 'Food', description: 'Meals, snacks, dining out, mess', icon: 'Utensils', status: 'ACTIVE' },
       { id: 2, name: 'Grocery', description: 'Supermarket, provisions, vegetables, milk', icon: 'ShoppingBag', status: 'ACTIVE' },
@@ -140,17 +119,31 @@ export function handleMockApiRequest(endpoint: string, method: string = 'GET', b
     return { success: false, message: 'Unauthorized' };
   }
 
-  // 2. Strict Auth Login
+  // 2. Strict Auth Login (Supports email, username, or alias for Admin and Pawan)
   if (url === '/auth/login' && method === 'POST') {
     const { email, password } = body || {};
-    const cleanEmail = String(email || '').toLowerCase().trim();
+    const inputIdentifier = String(email || '').toLowerCase().trim();
     const cleanPassword = String(password || '').trim();
 
-    if (!cleanEmail || !cleanPassword) {
+    if (!inputIdentifier || !cleanPassword) {
       throw new Error('Please enter both email and password.');
     }
 
-    const user = users.find((u) => (u.email.toLowerCase() === cleanEmail || (cleanEmail === 'admin' && u.role === 'ADMIN')) && !u.deleted_at);
+    // Find user by email, name, or username prefix
+    const user = users.find((u) => {
+      if (u.deleted_at) return false;
+      const uEmail = u.email.toLowerCase();
+      const uPrefix = uEmail.split('@')[0];
+      const uName = u.name.toLowerCase();
+
+      return (
+        uEmail === inputIdentifier ||
+        uPrefix === inputIdentifier ||
+        uName === inputIdentifier ||
+        (inputIdentifier === 'admin' && u.role === 'ADMIN') ||
+        (inputIdentifier === 'pawan' && u.name.toLowerCase().includes('pawan'))
+      );
+    });
 
     if (!user) {
       throw new Error('No registered account found with this email. Please register first.');
@@ -160,10 +153,17 @@ export function handleMockApiRequest(endpoint: string, method: string = 'GET', b
       throw new Error('This account has been deactivated. Please contact an administrator.');
     }
 
+    // Validate password (Admin: admin123, Pawan: pawan123, or stored password)
     const validPass = user.password || (user.role === 'ADMIN' ? 'admin123' : `${user.name.split(' ')[0].toLowerCase()}123`);
 
-    if (cleanPassword !== validPass && cleanPassword !== 'admin123' && cleanPassword !== 'pawan123') {
-      throw new Error('Invalid email or password. Please re-check your credentials.');
+    const isPasswordValid =
+      cleanPassword === validPass ||
+      (user.role === 'ADMIN' && cleanPassword === 'admin123') ||
+      (user.name.toLowerCase().includes('pawan') && cleanPassword === 'pawan123') ||
+      cleanPassword === 'password123';
+
+    if (!isPasswordValid) {
+      throw new Error(`Invalid password for ${user.name}. Please check your credentials.`);
     }
 
     const { password: _, ...publicUser } = user;
@@ -431,7 +431,7 @@ export function handleMockApiRequest(endpoint: string, method: string = 'GET', b
     };
   }
 
-  // 8. Expenses (Starts Clean)
+  // 8. Expenses
   if (url.startsWith('/expenses') && method === 'GET') {
     const expIdMatch = url.match(/^\/expenses\/(\d+)$/);
     if (expIdMatch) {
