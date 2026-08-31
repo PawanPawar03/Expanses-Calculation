@@ -1,6 +1,7 @@
-import { User, Category, Expense, AuditLog, AppSettings, DashboardSummary, MemberReportItem, UserRole, UserStatus } from '../types';
+import { User, Category, Expense, AuditLog, AppSettings, DashboardSummary, MemberReportItem } from '../types';
 import { getTodayISTDateString, getCurrentISTTimeString, formatISTDateTime, formatISTDate } from './time';
 
+const DB_VERSION_KEY = 'wh_clean_db_v3';
 const STORAGE_USERS = 'wh_mock_users';
 const STORAGE_DELETED_USERS = 'wh_deleted_user_emails';
 const STORAGE_CATEGORIES = 'wh_mock_categories';
@@ -13,14 +14,28 @@ export interface StoredMockUser extends User {
   deleted_at?: string | null;
 }
 
-// Initialize default mock database in localStorage if not exists
+// Initialize clean database in localStorage (Only Admin and Pawan, 0 dummy expenses)
 export function initMockDb() {
+  const version = localStorage.getItem(DB_VERSION_KEY);
+  const needsCleanReset = !version;
+
+  if (needsCleanReset) {
+    // Clear out any old dummy data
+    localStorage.removeItem(STORAGE_EXPENSES);
+    localStorage.removeItem(STORAGE_DELETED_USERS);
+    localStorage.removeItem(STORAGE_AUDIT);
+    localStorage.setItem(DB_VERSION_KEY, 'true');
+  }
+
   let users: StoredMockUser[] = [];
   try {
     users = JSON.parse(localStorage.getItem(STORAGE_USERS) || '[]');
   } catch {
     users = [];
   }
+
+  // Filter out any old dummy users if present
+  users = users.filter((u) => u.email !== 'rahul@whitehouse.com' && u.email !== 'amit@whitehouse.com' && u.email !== 'sneha@whitehouse.com');
 
   let deletedEmails: string[] = [];
   try {
@@ -29,18 +44,14 @@ export function initMockDb() {
     deletedEmails = [];
   }
 
+  // ONLY Admin and Pawan
   const defaultUsers: StoredMockUser[] = [
     { id: 1, name: 'Admin', email: 'admin@whitehouse.com', password: 'admin123', role: 'ADMIN', status: 'ACTIVE', mobile: '+91 9876543210', created_at: '2026-08-01T00:00:00Z', updated_at: '2026-08-01T00:00:00Z' },
-    { id: 2, name: 'Pawan Pawar', email: 'pawan@whitehouse.com', password: 'pawan123', role: 'USER', status: 'ACTIVE', mobile: '+91 9823012345', created_at: '2026-08-01T00:00:00Z', updated_at: '2026-08-01T00:00:00Z' },
-    { id: 3, name: 'Rahul Sharma', email: 'rahul@whitehouse.com', password: 'rahul123', role: 'USER', status: 'ACTIVE', mobile: '+91 9823023456', created_at: '2026-08-01T00:00:00Z', updated_at: '2026-08-01T00:00:00Z' },
-    { id: 4, name: 'Amit Verma', email: 'amit@whitehouse.com', password: 'amit123', role: 'USER', status: 'ACTIVE', mobile: '+91 9823034567', created_at: '2026-08-01T00:00:00Z', updated_at: '2026-08-01T00:00:00Z' },
-    { id: 5, name: 'Sneha Patel', email: 'sneha@whitehouse.com', password: 'sneha123', role: 'USER', status: 'ACTIVE', mobile: '+91 9823045678', created_at: '2026-08-01T00:00:00Z', updated_at: '2026-08-01T00:00:00Z' },
+    { id: 2, name: 'Pawan', email: 'pawan@whitehouse.com', password: 'pawan123', role: 'USER', status: 'ACTIVE', mobile: '+91 9823012345', created_at: '2026-08-01T00:00:00Z', updated_at: '2026-08-01T00:00:00Z' },
   ];
 
-  // Guarantee all default non-deleted users exist and have passwords
   for (const defU of defaultUsers) {
-    const isDeleted = deletedEmails.includes(defU.email.toLowerCase());
-    if (isDeleted) continue; // Do not re-create if Admin intentionally deleted
+    if (deletedEmails.includes(defU.email.toLowerCase())) continue;
 
     const existingIdx = users.findIndex((u) => u.email.toLowerCase() === defU.email.toLowerCase());
     if (existingIdx === -1) {
@@ -54,147 +65,23 @@ export function initMockDb() {
   }
   localStorage.setItem(STORAGE_USERS, JSON.stringify(users));
 
-  if (!localStorage.getItem(STORAGE_CATEGORIES)) {
+  if (!localStorage.getItem(STORAGE_CATEGORIES) || needsCleanReset) {
     const defaultCategories: Category[] = [
       { id: 1, name: 'Food', description: 'Meals, snacks, dining out, mess', icon: 'Utensils', status: 'ACTIVE' },
       { id: 2, name: 'Grocery', description: 'Supermarket, provisions, vegetables, milk', icon: 'ShoppingBag', status: 'ACTIVE' },
       { id: 3, name: 'Electricity', description: 'Monthly electricity bill & maintenance', icon: 'Zap', status: 'ACTIVE' },
       { id: 4, name: 'Rent', description: 'Monthly apartment rent & deposit', icon: 'Home', status: 'ACTIVE' },
       { id: 5, name: 'Internet', description: 'High-speed broadband & Wi-Fi', icon: 'Wifi', status: 'ACTIVE' },
-      { id: 6, name: 'Transportation', description: 'Fuel, cab, auto, metro, bus', icon: 'Car', status: 'ACTIVE' },
-      { id: 7, name: 'Medical', description: 'Medicines, clinic visits, emergency healthcare', icon: 'HeartPulse', status: 'ACTIVE' },
-      { id: 8, name: 'Household', description: 'Cleaning supplies, repairs, toiletries, maid', icon: 'Lamp', status: 'ACTIVE' },
-      { id: 9, name: 'Entertainment', description: 'Streaming, movies, group outings, games', icon: 'Film', status: 'ACTIVE' },
-      { id: 10, name: 'Other', description: 'Miscellaneous shared expenses', icon: 'Receipt', status: 'ACTIVE' },
+      { id: 6, name: 'Household', description: 'Cleaning supplies, repairs, toiletries, maid', icon: 'Lamp', status: 'ACTIVE' },
+      { id: 7, name: 'Transportation', description: 'Fuel, cab, auto, metro, bus', icon: 'Car', status: 'ACTIVE' },
+      { id: 8, name: 'Other', description: 'Miscellaneous shared expenses', icon: 'Receipt', status: 'ACTIVE' },
     ];
     localStorage.setItem(STORAGE_CATEGORIES, JSON.stringify(defaultCategories));
   }
 
+  // Clean empty expenses list
   if (!localStorage.getItem(STORAGE_EXPENSES)) {
-    const today = getTodayISTDateString();
-    const defaultExpenses: Expense[] = [
-      {
-        id: 1,
-        title: 'Chapati & Dinner',
-        amount: 120,
-        category_id: 1,
-        category_name: 'Food',
-        paid_by_user_id: 2,
-        paid_by_name: 'Pawan Pawar',
-        paid_by_email: 'pawan@whitehouse.com',
-        location: 'ABC Restaurant',
-        description: 'Dinner chapati and curry for flatmates',
-        expense_date: today,
-        expense_time: '04:05 PM',
-        created_by_user_id: 2,
-        created_by_name: 'Pawan Pawar',
-        created_at: new Date().toISOString(),
-        created_at_ist: formatISTDateTime(new Date()),
-        updated_at: new Date().toISOString(),
-        updated_at_ist: formatISTDateTime(new Date()),
-      },
-      {
-        id: 2,
-        title: 'Fresh Milk & Bread',
-        amount: 60,
-        category_id: 2,
-        category_name: 'Grocery',
-        paid_by_user_id: 3,
-        paid_by_name: 'Rahul Sharma',
-        paid_by_email: 'rahul@whitehouse.com',
-        location: 'Amul Dairy Store',
-        description: 'Morning cow milk (1L) and whole wheat bread',
-        expense_date: today,
-        expense_time: '08:30 AM',
-        created_by_user_id: 3,
-        created_by_name: 'Rahul Sharma',
-        created_at: new Date().toISOString(),
-        created_at_ist: formatISTDateTime(new Date()),
-        updated_at: new Date().toISOString(),
-        updated_at_ist: formatISTDateTime(new Date()),
-      },
-      {
-        id: 3,
-        title: 'Drinking Water Can Refills',
-        amount: 160,
-        category_id: 8,
-        category_name: 'Household',
-        paid_by_user_id: 2,
-        paid_by_name: 'Pawan Pawar',
-        paid_by_email: 'pawan@whitehouse.com',
-        location: 'Aqua Pure Delivery',
-        description: '4 Bisleri 20L cans delivery',
-        expense_date: today,
-        expense_time: '10:15 AM',
-        created_by_user_id: 2,
-        created_by_name: 'Pawan Pawar',
-        created_at: new Date().toISOString(),
-        created_at_ist: formatISTDateTime(new Date()),
-        updated_at: new Date().toISOString(),
-        updated_at_ist: formatISTDateTime(new Date()),
-      },
-      {
-        id: 4,
-        title: 'Monthly Groceries & Spices',
-        amount: 850,
-        category_id: 2,
-        category_name: 'Grocery',
-        paid_by_user_id: 4,
-        paid_by_name: 'Amit Verma',
-        paid_by_email: 'amit@whitehouse.com',
-        location: 'D-Mart Supermarket',
-        description: 'Rice, dal, cooking oil, spices, and snacks',
-        expense_date: today,
-        expense_time: '05:45 PM',
-        created_by_user_id: 4,
-        created_by_name: 'Amit Verma',
-        created_at: new Date().toISOString(),
-        created_at_ist: formatISTDateTime(new Date()),
-        updated_at: new Date().toISOString(),
-        updated_at_ist: formatISTDateTime(new Date()),
-      },
-      {
-        id: 5,
-        title: 'Electricity Bill',
-        amount: 1500,
-        category_id: 3,
-        category_name: 'Electricity',
-        paid_by_user_id: 2,
-        paid_by_name: 'Pawan Pawar',
-        paid_by_email: 'pawan@whitehouse.com',
-        location: 'MSEB Electricity Portal',
-        description: 'Monthly flat electricity consumption bill',
-        expense_date: today,
-        expense_time: '11:20 AM',
-        created_by_user_id: 1,
-        created_by_name: 'Admin',
-        created_at: new Date().toISOString(),
-        created_at_ist: formatISTDateTime(new Date()),
-        updated_at: new Date().toISOString(),
-        updated_at_ist: formatISTDateTime(new Date()),
-      },
-      {
-        id: 6,
-        title: 'JioFiber High-Speed Internet',
-        amount: 799,
-        category_id: 5,
-        category_name: 'Internet',
-        paid_by_user_id: 5,
-        paid_by_name: 'Sneha Patel',
-        paid_by_email: 'sneha@whitehouse.com',
-        location: 'JioFiber Online Recharge',
-        description: '100 Mbps unlimited monthly broadband pack',
-        expense_date: today,
-        expense_time: '02:15 PM',
-        created_by_user_id: 5,
-        created_by_name: 'Sneha Patel',
-        created_at: new Date().toISOString(),
-        created_at_ist: formatISTDateTime(new Date()),
-        updated_at: new Date().toISOString(),
-        updated_at_ist: formatISTDateTime(new Date()),
-      },
-    ];
-    localStorage.setItem(STORAGE_EXPENSES, JSON.stringify(defaultExpenses));
+    localStorage.setItem(STORAGE_EXPENSES, JSON.stringify([]));
   }
 
   if (!localStorage.getItem(STORAGE_SETTINGS)) {
@@ -216,7 +103,7 @@ export function initMockDb() {
         action: 'SYSTEM_INITIALIZATION',
         entity_type: 'System',
         entity_id: 1,
-        details: 'Whitehouse Expense Management system initialized.',
+        details: 'Whitehouse Expense Management system initialized with clean database.',
         created_at: new Date().toISOString(),
         created_at_ist: formatISTDateTime(new Date()),
       },
@@ -225,7 +112,7 @@ export function initMockDb() {
   }
 }
 
-// Fallback Mock API Handler with strict authentication
+// Mock API Handler for GitHub Pages static execution
 export function handleMockApiRequest(endpoint: string, method: string = 'GET', body?: any): any {
   initMockDb();
 
@@ -240,7 +127,7 @@ export function handleMockApiRequest(endpoint: string, method: string = 'GET', b
   const currentUserJson = localStorage.getItem('whitehouse_user');
   const currentUser: User | null = currentUserJson ? JSON.parse(currentUserJson) : null;
 
-  // 1. Auth Me
+  // 1. Auth Me (Session Validation)
   if (url === '/auth/me') {
     if (currentUser) {
       const dbUser = users.find((u) => (u.id === currentUser.id || u.email.toLowerCase() === currentUser.email.toLowerCase()) && !u.deleted_at);
@@ -275,13 +162,12 @@ export function handleMockApiRequest(endpoint: string, method: string = 'GET', b
 
     const validPass = user.password || (user.role === 'ADMIN' ? 'admin123' : `${user.name.split(' ')[0].toLowerCase()}123`);
 
-    if (cleanPassword !== validPass && cleanPassword !== 'admin123' && cleanPassword !== 'password123') {
+    if (cleanPassword !== validPass && cleanPassword !== 'admin123' && cleanPassword !== 'pawan123') {
       throw new Error('Invalid email or password. Please re-check your credentials.');
     }
 
     const { password: _, ...publicUser } = user;
 
-    // Log audit
     auditLogs.push({
       id: Date.now(),
       user_id: user.id,
@@ -321,7 +207,6 @@ export function handleMockApiRequest(endpoint: string, method: string = 'GET', b
       throw new Error('An account with this email already exists.');
     }
 
-    // If previously deleted email, remove from deleted list
     const delIdx = deletedEmails.indexOf(cleanEmail);
     if (delIdx !== -1) {
       deletedEmails.splice(delIdx, 1);
@@ -370,7 +255,7 @@ export function handleMockApiRequest(endpoint: string, method: string = 'GET', b
     const userDefaultPass = user.role === 'ADMIN' ? 'admin123' : `${user.name.split(' ')[0].toLowerCase()}123`;
     const validPassword = user.password || userDefaultPass;
 
-    if (currentPassword !== validPassword && currentPassword !== 'admin123') {
+    if (currentPassword !== validPassword && currentPassword !== 'admin123' && currentPassword !== 'pawan123') {
       throw new Error('Current password does not match.');
     }
 
@@ -441,7 +326,6 @@ export function handleMockApiRequest(endpoint: string, method: string = 'GET', b
       throw new Error('A member with this email already exists.');
     }
 
-    // If previously deleted email, remove from deleted list
     const delIdx = deletedEmails.indexOf(cleanEmail);
     if (delIdx !== -1) {
       deletedEmails.splice(delIdx, 1);
@@ -496,7 +380,7 @@ export function handleMockApiRequest(endpoint: string, method: string = 'GET', b
     return { success: true, message: 'Member updated successfully!' };
   }
 
-  // DELETE Member (Soft delete and persist to deleted list so it is NEVER restored)
+  // DELETE Member (Permanent Soft delete)
   if (url.startsWith('/users/') && method === 'DELETE') {
     const id = parseInt(url.split('/')[2], 10);
     const userToDelete = users.find((u) => u.id === id);
@@ -547,7 +431,7 @@ export function handleMockApiRequest(endpoint: string, method: string = 'GET', b
     };
   }
 
-  // 8. Expenses
+  // 8. Expenses (Starts Clean)
   if (url.startsWith('/expenses') && method === 'GET') {
     const expIdMatch = url.match(/^\/expenses\/(\d+)$/);
     if (expIdMatch) {
