@@ -78,13 +78,12 @@ authRouter.post('/login', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid input fields.' });
     }
 
-    const { email, password, rememberMe } = parsed.data;
-
+    const cleanInput = email.toLowerCase().trim();
     const user = db.prepare(`
       SELECT id, name, email, password_hash, mobile, role, status, created_at, updated_at 
       FROM users 
-      WHERE email = ? AND deleted_at IS NULL
-    `).get(email.toLowerCase().trim()) as User | undefined;
+      WHERE (LOWER(email) = ? OR LOWER(name) = ? OR (LOWER(email) LIKE ? AND (role = 'ADMIN' OR LOWER(name) LIKE ?))) AND deleted_at IS NULL
+    `).get(cleanInput, cleanInput, `${cleanInput}%`, `%${cleanInput}%`) as User | undefined;
 
     if (!user) {
       return res.status(401).json({ success: false, message: 'Invalid email or password.' });

@@ -5,7 +5,7 @@ import { useApp } from '../../context/AppContext';
 import { api } from '../../lib/api';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
-import { Lock, Mail, ArrowRight } from 'lucide-react';
+import { Lock, Mail, ArrowRight, ShieldCheck, UserCheck } from 'lucide-react';
 
 export const LoginPage: React.FC = () => {
   const { user, isAuthenticated, login } = useAuth();
@@ -13,8 +13,8 @@ export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState('admin@whitehouse.com');
+  const [password, setPassword] = useState('admin123');
   const [rememberMe, setRememberMe] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -42,7 +42,7 @@ export const LoginPage: React.FC = () => {
     try {
       const res = await api.post('/auth/login', {
         email: email.trim(),
-        password,
+        password: password.trim(),
         rememberMe,
       });
 
@@ -58,6 +58,8 @@ export const LoginPage: React.FC = () => {
         } else {
           navigate('/dashboard', { replace: true });
         }
+      } else {
+        setError(res.message || 'Invalid email or password.');
       }
     } catch (err: any) {
       console.error('Login failure:', err);
@@ -65,6 +67,12 @@ export const LoginPage: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const setCredentials = (userEmail: string, userPass: string) => {
+    setEmail(userEmail);
+    setPassword(userPass);
+    setError(null);
   };
 
   return (
@@ -88,6 +96,42 @@ export const LoginPage: React.FC = () => {
             <p className="text-xs text-slate-500">Access shared household expenses and reports</p>
           </div>
 
+          {/* 1-Click Quick Fill Presets */}
+          <div className="rounded-2xl bg-slate-50 p-3 border border-slate-200/70 space-y-2">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+              Quick 1-Tap Login
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setCredentials('admin@whitehouse.com', 'admin123')}
+                className="flex items-center gap-2 p-2 rounded-xl bg-white border border-slate-200 hover:border-emerald-500 hover:bg-emerald-50/50 transition-all text-left shadow-sm group"
+              >
+                <div className="h-7 w-7 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-xs">
+                  <ShieldCheck className="w-4 h-4" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-slate-800 group-hover:text-emerald-700">Admin</p>
+                  <p className="text-[10px] text-slate-400 font-mono">admin123</p>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setCredentials('pawan@whitehouse.com', 'pawan123')}
+                className="flex items-center gap-2 p-2 rounded-xl bg-white border border-slate-200 hover:border-emerald-500 hover:bg-emerald-50/50 transition-all text-left shadow-sm group"
+              >
+                <div className="h-7 w-7 rounded-lg bg-teal-100 text-teal-700 flex items-center justify-center font-bold text-xs">
+                  <UserCheck className="w-4 h-4" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-slate-800 group-hover:text-emerald-700">Pawan</p>
+                  <p className="text-[10px] text-slate-400 font-mono">pawan123</p>
+                </div>
+              </button>
+            </div>
+          </div>
+
           {error && (
             <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs font-medium">
               {error}
@@ -98,8 +142,8 @@ export const LoginPage: React.FC = () => {
             <div>
               <Input
                 label="Email Address / Username"
-                type="email"
-                placeholder="you@whitehouse.com"
+                type="text"
+                placeholder="admin@whitehouse.com or admin"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 prefixIcon={<Mail className="w-4 h-4" />}
