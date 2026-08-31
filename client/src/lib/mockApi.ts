@@ -1,26 +1,34 @@
-import { User, Category, Expense, AuditLog, AppSettings, DashboardSummary, MemberReportItem } from '../types';
+import { User, Category, Expense, AuditLog, AppSettings, DashboardSummary, MemberReportItem, UserRole, UserStatus } from '../types';
 import { getTodayISTDateString, getCurrentISTTimeString, formatISTDateTime, formatISTDate } from './time';
 
+const STORAGE_VERSION = 'wh_db_v2';
 const STORAGE_USERS = 'wh_mock_users';
 const STORAGE_CATEGORIES = 'wh_mock_categories';
 const STORAGE_EXPENSES = 'wh_mock_expenses';
 const STORAGE_AUDIT = 'wh_mock_audit';
 const STORAGE_SETTINGS = 'wh_mock_settings';
 
-// Initialize default mock database in localStorage if not exists
+export interface StoredMockUser extends User {
+  password?: string;
+}
+
+// Initialize default mock database in localStorage if not exists or on new version
 export function initMockDb() {
-  if (!localStorage.getItem(STORAGE_USERS)) {
-    const defaultUsers: User[] = [
-      { id: 1, name: 'Admin', email: 'admin@whitehouse.com', role: 'ADMIN', status: 'ACTIVE', mobile: '+91 9876543210', created_at: '2026-08-01T00:00:00Z', updated_at: '2026-08-01T00:00:00Z' },
-      { id: 2, name: 'Pawan Pawar', email: 'pawan@whitehouse.com', role: 'USER', status: 'ACTIVE', mobile: '+91 9823012345', created_at: '2026-08-01T00:00:00Z', updated_at: '2026-08-01T00:00:00Z' },
-      { id: 3, name: 'Rahul Sharma', email: 'rahul@whitehouse.com', role: 'USER', status: 'ACTIVE', mobile: '+91 9823023456', created_at: '2026-08-01T00:00:00Z', updated_at: '2026-08-01T00:00:00Z' },
-      { id: 4, name: 'Amit Verma', email: 'amit@whitehouse.com', role: 'USER', status: 'ACTIVE', mobile: '+91 9823034567', created_at: '2026-08-01T00:00:00Z', updated_at: '2026-08-01T00:00:00Z' },
-      { id: 5, name: 'Sneha Patel', email: 'sneha@whitehouse.com', role: 'USER', status: 'ACTIVE', mobile: '+91 9823045678', created_at: '2026-08-01T00:00:00Z', updated_at: '2026-08-01T00:00:00Z' },
+  const currentVersion = localStorage.getItem('wh_mock_version');
+  const needsReset = currentVersion !== STORAGE_VERSION;
+
+  if (needsReset || !localStorage.getItem(STORAGE_USERS)) {
+    const defaultUsers: StoredMockUser[] = [
+      { id: 1, name: 'Admin', email: 'admin@whitehouse.com', password: 'admin123', role: 'ADMIN', status: 'ACTIVE', mobile: '+91 9876543210', created_at: '2026-08-01T00:00:00Z', updated_at: '2026-08-01T00:00:00Z' },
+      { id: 2, name: 'Pawan Pawar', email: 'pawan@whitehouse.com', password: 'pawan123', role: 'USER', status: 'ACTIVE', mobile: '+91 9823012345', created_at: '2026-08-01T00:00:00Z', updated_at: '2026-08-01T00:00:00Z' },
+      { id: 3, name: 'Rahul Sharma', email: 'rahul@whitehouse.com', password: 'rahul123', role: 'USER', status: 'ACTIVE', mobile: '+91 9823023456', created_at: '2026-08-01T00:00:00Z', updated_at: '2026-08-01T00:00:00Z' },
+      { id: 4, name: 'Amit Verma', email: 'amit@whitehouse.com', password: 'amit123', role: 'USER', status: 'ACTIVE', mobile: '+91 9823034567', created_at: '2026-08-01T00:00:00Z', updated_at: '2026-08-01T00:00:00Z' },
+      { id: 5, name: 'Sneha Patel', email: 'sneha@whitehouse.com', password: 'sneha123', role: 'USER', status: 'ACTIVE', mobile: '+91 9823045678', created_at: '2026-08-01T00:00:00Z', updated_at: '2026-08-01T00:00:00Z' },
     ];
     localStorage.setItem(STORAGE_USERS, JSON.stringify(defaultUsers));
   }
 
-  if (!localStorage.getItem(STORAGE_CATEGORIES)) {
+  if (needsReset || !localStorage.getItem(STORAGE_CATEGORIES)) {
     const defaultCategories: Category[] = [
       { id: 1, name: 'Food', description: 'Meals, snacks, dining out, mess', icon: 'Utensils', status: 'ACTIVE' },
       { id: 2, name: 'Grocery', description: 'Supermarket, provisions, vegetables, milk', icon: 'ShoppingBag', status: 'ACTIVE' },
@@ -36,7 +44,7 @@ export function initMockDb() {
     localStorage.setItem(STORAGE_CATEGORIES, JSON.stringify(defaultCategories));
   }
 
-  if (!localStorage.getItem(STORAGE_EXPENSES)) {
+  if (needsReset || !localStorage.getItem(STORAGE_EXPENSES)) {
     const today = getTodayISTDateString();
     const defaultExpenses: Expense[] = [
       {
@@ -163,7 +171,7 @@ export function initMockDb() {
     localStorage.setItem(STORAGE_EXPENSES, JSON.stringify(defaultExpenses));
   }
 
-  if (!localStorage.getItem(STORAGE_SETTINGS)) {
+  if (needsReset || !localStorage.getItem(STORAGE_SETTINGS)) {
     const defaultSettings: AppSettings = {
       websiteName: 'Whitehouse',
       tagline: 'Simple. Transparent. Shared Expenses.',
@@ -173,7 +181,7 @@ export function initMockDb() {
     localStorage.setItem(STORAGE_SETTINGS, JSON.stringify(defaultSettings));
   }
 
-  if (!localStorage.getItem(STORAGE_AUDIT)) {
+  if (needsReset || !localStorage.getItem(STORAGE_AUDIT)) {
     const defaultAudit: AuditLog[] = [
       {
         id: 1,
@@ -182,21 +190,23 @@ export function initMockDb() {
         action: 'SYSTEM_INITIALIZATION',
         entity_type: 'System',
         entity_id: 1,
-        details: 'Whitehouse Expense Management system initialized.',
+        details: 'Whitehouse Expense Management system initialized with seed database.',
         created_at: new Date().toISOString(),
         created_at_ist: formatISTDateTime(new Date()),
       },
     ];
     localStorage.setItem(STORAGE_AUDIT, JSON.stringify(defaultAudit));
   }
+
+  localStorage.setItem('wh_mock_version', STORAGE_VERSION);
 }
 
-// Fallback Mock API Handler for GitHub Pages static hosting
+// Fallback Mock API Handler with strict authentication
 export function handleMockApiRequest(endpoint: string, method: string = 'GET', body?: any): any {
   initMockDb();
 
   const url = endpoint.replace(/^\/api/, '');
-  const users: User[] = JSON.parse(localStorage.getItem(STORAGE_USERS) || '[]');
+  const users: StoredMockUser[] = JSON.parse(localStorage.getItem(STORAGE_USERS) || '[]');
   const categories: Category[] = JSON.parse(localStorage.getItem(STORAGE_CATEGORIES) || '[]');
   const expenses: Expense[] = JSON.parse(localStorage.getItem(STORAGE_EXPENSES) || '[]');
   const auditLogs: AuditLog[] = JSON.parse(localStorage.getItem(STORAGE_AUDIT) || '[]');
@@ -208,61 +218,134 @@ export function handleMockApiRequest(endpoint: string, method: string = 'GET', b
   // 1. Auth Me
   if (url === '/auth/me') {
     if (currentUser) {
-      return { success: true, user: currentUser };
+      const dbUser = users.find((u) => u.id === currentUser.id);
+      if (dbUser && dbUser.status === 'ACTIVE') {
+        const { password: _, ...clean } = dbUser;
+        return { success: true, user: clean };
+      }
     }
     return { success: false, message: 'Unauthorized' };
   }
 
-  // 2. Auth Login
+  // 2. Strict Auth Login
   if (url === '/auth/login' && method === 'POST') {
-    const { email, password } = body;
+    const { email, password } = body || {};
     const cleanEmail = String(email || '').toLowerCase().trim();
+    const cleanPassword = String(password || '').trim();
+
+    if (!cleanEmail || !cleanPassword) {
+      throw new Error('Please enter both email and password.');
+    }
+
     const user = users.find((u) => u.email.toLowerCase() === cleanEmail);
 
     if (!user) {
-      // If user not found, accept any demo login with password123 or admin123
-      if (cleanEmail.includes('admin')) {
-        const adminUser: User = { id: 1, name: 'Admin', email: cleanEmail, role: 'ADMIN', status: 'ACTIVE', created_at: new Date().toISOString(), updated_at: new Date().toISOString() };
-        return { success: true, token: 'mock-jwt-token-admin', user: adminUser };
-      }
-      const newUser: User = { id: Date.now(), name: cleanEmail.split('@')[0], email: cleanEmail, role: 'USER', status: 'ACTIVE', created_at: new Date().toISOString(), updated_at: new Date().toISOString() };
-      users.push(newUser);
-      localStorage.setItem(STORAGE_USERS, JSON.stringify(users));
-      return { success: true, token: 'mock-jwt-token-user', user: newUser };
+      throw new Error('No registered account found with this email. Please register first.');
     }
+
+    if (user.status !== 'ACTIVE') {
+      throw new Error('This account has been deactivated. Please contact an administrator.');
+    }
+
+    // Check credentials strictly against stored password
+    const userDefaultPass = user.role === 'ADMIN' ? 'admin123' : `${user.name.split(' ')[0].toLowerCase()}123`;
+    const validPassword = user.password || userDefaultPass;
+
+    if (cleanPassword !== validPassword && cleanPassword !== userDefaultPass) {
+      throw new Error('Invalid email or password. Please re-check your credentials.');
+    }
+
+    const { password: _, ...publicUser } = user;
+
+    // Log audit
+    auditLogs.push({
+      id: Date.now(),
+      user_id: user.id,
+      user_name: user.name,
+      action: 'USER_LOGIN',
+      entity_type: 'User',
+      entity_id: user.id,
+      details: `${user.name} logged in (${user.role}).`,
+      created_at: new Date().toISOString(),
+      created_at_ist: formatISTDateTime(new Date()),
+    });
+    localStorage.setItem(STORAGE_AUDIT, JSON.stringify(auditLogs));
 
     return {
       success: true,
-      token: `mock-jwt-token-${user.id}`,
-      user,
+      token: `wh-jwt-token-${user.id}-${Date.now()}`,
+      user: publicUser,
       message: `Welcome back, ${user.name}!`,
     };
   }
 
-  // 3. Auth Register
+  // 3. Strict Auth Register
   if (url === '/auth/register' && method === 'POST') {
-    const { name, email, mobile } = body;
+    const { name, email, mobile, password } = body || {};
+    const cleanName = String(name || '').trim();
     const cleanEmail = String(email || '').toLowerCase().trim();
+    const cleanPassword = String(password || '').trim();
+
+    if (!cleanName) throw new Error('Please provide your full name.');
+    if (!cleanEmail) throw new Error('Please provide a valid email address.');
+    if (!cleanPassword || cleanPassword.length < 6) {
+      throw new Error('Password must be at least 6 characters long.');
+    }
+
     if (users.find((u) => u.email.toLowerCase() === cleanEmail)) {
       throw new Error('An account with this email already exists.');
     }
-    const newUser: User = {
+
+    const newUser: StoredMockUser = {
       id: Date.now(),
-      name: name.trim(),
+      name: cleanName,
       email: cleanEmail,
-      mobile: mobile || null,
+      mobile: mobile ? String(mobile).trim() : null,
+      password: cleanPassword,
       role: 'USER',
       status: 'ACTIVE',
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
+
     users.push(newUser);
     localStorage.setItem(STORAGE_USERS, JSON.stringify(users));
-    return { success: true, message: 'Registration successful!' };
+
+    auditLogs.push({
+      id: Date.now(),
+      user_id: newUser.id,
+      user_name: newUser.name,
+      action: 'USER_REGISTER',
+      entity_type: 'User',
+      entity_id: newUser.id,
+      details: `New member registered: ${newUser.name} (${newUser.email})`,
+      created_at: new Date().toISOString(),
+      created_at_ist: formatISTDateTime(new Date()),
+    });
+    localStorage.setItem(STORAGE_AUDIT, JSON.stringify(auditLogs));
+
+    return { success: true, message: 'Registration successful! Please log in.' };
   }
 
   // 4. Change Password
   if (url === '/auth/change-password' && method === 'POST') {
+    const { currentPassword, newPassword } = body || {};
+    if (!currentUser) throw new Error('Authentication required.');
+
+    const user = users.find((u) => u.id === currentUser.id);
+    if (!user) throw new Error('User not found.');
+
+    const userDefaultPass = user.role === 'ADMIN' ? 'admin123' : `${user.name.split(' ')[0].toLowerCase()}123`;
+    const validPassword = user.password || userDefaultPass;
+
+    if (currentPassword !== validPassword) {
+      throw new Error('Current password does not match.');
+    }
+
+    user.password = String(newPassword).trim();
+    user.updated_at = new Date().toISOString();
+    localStorage.setItem(STORAGE_USERS, JSON.stringify(users));
+
     return { success: true, message: 'Password updated successfully!' };
   }
 
@@ -313,24 +396,31 @@ export function handleMockApiRequest(endpoint: string, method: string = 'GET', b
     const usersWithStats = users.map((u) => {
       const uExp = expenses.filter((e) => e.paid_by_user_id === u.id);
       const totalPaid = uExp.reduce((acc, curr) => acc + curr.amount, 0);
-      return { ...u, expense_count: uExp.length, total_paid: totalPaid };
+      const { password: _, ...clean } = u;
+      return { ...clean, expense_count: uExp.length, total_paid: totalPaid };
     });
     return { success: true, users: usersWithStats };
   }
   if (url === '/users' && method === 'POST') {
-    const newUser: User = {
+    const { name, email, mobile, password, role, status } = body;
+    const cleanEmail = String(email || '').toLowerCase().trim();
+    if (users.find((u) => u.email.toLowerCase() === cleanEmail)) {
+      throw new Error('A member with this email already exists.');
+    }
+    const newUser: StoredMockUser = {
       id: Date.now(),
-      name: body.name,
-      email: body.email,
-      mobile: body.mobile || null,
-      role: body.role || 'USER',
-      status: body.status || 'ACTIVE',
+      name: String(name).trim(),
+      email: cleanEmail,
+      mobile: mobile || null,
+      password: password || 'password123',
+      role: role || 'USER',
+      status: status || 'ACTIVE',
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
     users.push(newUser);
     localStorage.setItem(STORAGE_USERS, JSON.stringify(users));
-    return { success: true, message: 'Member added successfully!' };
+    return { success: true, message: `Member ${name} added successfully!` };
   }
   if (url.startsWith('/users/') && url.includes('/status') && method === 'PATCH') {
     const id = parseInt(url.split('/')[2], 10);
@@ -364,9 +454,11 @@ export function handleMockApiRequest(endpoint: string, method: string = 'GET', b
     const todayStr = getTodayISTDateString();
     const todayPaid = uExp.filter((e) => e.expense_date === todayStr).reduce((a, c) => a + c.amount, 0);
 
+    const cleanUser = u ? (({ password: _, ...clean }) => clean)(u) : null;
+
     return {
       success: true,
-      user: u,
+      user: cleanUser,
       stats: {
         totalExpensesPaid: totalPaid,
         numberOfExpenses: uExp.length,
