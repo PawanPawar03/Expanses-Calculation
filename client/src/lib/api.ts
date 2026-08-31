@@ -1,6 +1,21 @@
 import { handleMockApiRequest } from './mockApi';
 
-const API_BASE = '/api';
+export const getApiBaseUrl = (): string => {
+  // 1. Check user configured cloud backend in localStorage
+  if (typeof window !== 'undefined') {
+    const savedUrl = localStorage.getItem('wh_cloud_api_url');
+    if (savedUrl && savedUrl.trim()) {
+      return savedUrl.trim().replace(/\/+$/, '');
+    }
+  }
+  // 2. Check Vite env variable
+  const metaEnv = (import.meta as any)?.env;
+  if (metaEnv?.VITE_API_URL) {
+    return (metaEnv.VITE_API_URL as string).replace(/\/+$/, '');
+  }
+  // 3. Default relative path for local proxy & fullstack deployment
+  return '/api';
+};
 
 export class ApiError extends Error {
   status: number;
@@ -17,6 +32,7 @@ export async function request<T = any>(
   options: RequestInit = {}
 ): Promise<T> {
   const token = localStorage.getItem('whitehouse_token');
+  const apiBase = getApiBaseUrl();
 
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
@@ -24,7 +40,8 @@ export async function request<T = any>(
     ...(options.headers || {}),
   };
 
-  const url = `${API_BASE}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
+  const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+  const url = apiBase.endsWith('/api') ? `${apiBase}${cleanEndpoint}` : `${apiBase}/api${cleanEndpoint}`;
 
   try {
     const response = await fetch(url, {
@@ -35,14 +52,14 @@ export async function request<T = any>(
     const data = await response.json().catch(() => ({}));
 
     if (!response.ok) {
-      // If 404 or server not present on static host (GitHub Pages), fallback to mock API
-      if (response.status === 404 && typeof window !== 'undefined') {
+      // If 404 or backend not reachable on GitHub Pages, fallback to browser storage
+      if (response.status === 404 && typeof window !== 'undefined' && apiBase === '/api') {
         const bodyObj = options.body ? JSON.parse(options.body as string) : undefined;
-        return handleMockApiRequest(endpoint, options.method || 'GET', bodyObj);
+        return handleMockApiRequest(cleanEndpoint, options.method || 'GET', bodyObj);
       }
 
       if (response.status === 401) {
-        if (endpoint !== '/auth/login' && endpoint !== '/auth/register') {
+        if (cleanEndpoint !== '/auth/login' && cleanEndpoint !== '/auth/register') {
           localStorage.removeItem('whitehouse_token');
           localStorage.removeItem('whitehouse_user');
         }
@@ -52,10 +69,13 @@ export async function request<T = any>(
 
     return data as T;
   } catch (err: any) {
-    // If fetch failed completely (e.g. static GitHub Pages without backend), use Mock DB
+    if (err instanceof ApiError) {
+      throw err;
+    }
+    // Fallback if local/remote server not running
     if (typeof window !== 'undefined') {
       const bodyObj = options.body ? JSON.parse(options.body as string) : undefined;
-      return handleMockApiRequest(endpoint, options.method || 'GET', bodyObj);
+      return handleMockApiRequest(cleanEndpoint, options.method || 'GET', bodyObj);
     }
     throw err;
   }

@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { AppSettings, Category, User } from '../types';
-import { api } from '../lib/api';
+import { api, getApiBaseUrl } from '../lib/api';
 import { useAuth } from './AuthContext';
 
 interface Toast {
@@ -16,6 +16,8 @@ interface AppContextType {
   toasts: Toast[];
   isAddExpenseModalOpen: boolean;
   refreshTrigger: number;
+  cloudApiUrl: string;
+  setCloudApiUrl: (url: string) => void;
   triggerRefresh: () => void;
   openAddExpenseModal: () => void;
   closeAddExpenseModal: () => void;
@@ -43,10 +45,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [isAddExpenseModalOpen, setIsAddExpenseModalOpen] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [cloudApiUrl, setCloudApiUrlState] = useState<string>(() => localStorage.getItem('wh_cloud_api_url') || '');
 
   const triggerRefresh = useCallback(() => {
     setRefreshTrigger((prev) => prev + 1);
   }, []);
+
+  const setCloudApiUrl = (url: string) => {
+    setCloudApiUrlState(url);
+    if (url.trim()) {
+      localStorage.setItem('wh_cloud_api_url', url.trim());
+    } else {
+      localStorage.removeItem('wh_cloud_api_url');
+    }
+    triggerRefresh();
+  };
 
   const showToast = useCallback((message: string, type: 'success' | 'error' | 'info' | 'warning' = 'success') => {
     const id = Math.random().toString(36).substring(2, 9);
@@ -106,6 +119,34 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [isAuthenticated, fetchCategories, fetchMembers, refreshTrigger]);
 
+  // Real-time live polling & focus listener across devices/tabs
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const interval = setInterval(() => {
+      triggerRefresh();
+    }, 6000); // Live poll every 6 seconds
+
+    const handleFocus = () => {
+      triggerRefresh();
+    };
+
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key?.startsWith('wh_')) {
+        triggerRefresh();
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('storage', handleStorage);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('storage', handleStorage);
+    };
+  }, [isAuthenticated, triggerRefresh]);
+
   const updateSettingsState = (newSettings: Partial<AppSettings>) => {
     setSettings((prev) => ({ ...prev, ...newSettings }));
   };
@@ -122,6 +163,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         toasts,
         isAddExpenseModalOpen,
         refreshTrigger,
+        cloudApiUrl,
+        setCloudApiUrl,
         triggerRefresh,
         openAddExpenseModal,
         closeAddExpenseModal,
