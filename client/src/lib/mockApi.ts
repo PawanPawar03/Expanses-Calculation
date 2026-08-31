@@ -2,6 +2,7 @@ import { User, Category, Expense, AuditLog, AppSettings, DashboardSummary, Membe
 import { getTodayISTDateString, getCurrentISTTimeString, formatISTDateTime, formatISTDate } from './time';
 
 const STORAGE_USERS = 'wh_mock_users';
+const STORAGE_DELETED_USERS = 'wh_deleted_user_emails';
 const STORAGE_CATEGORIES = 'wh_mock_categories';
 const STORAGE_EXPENSES = 'wh_mock_expenses';
 const STORAGE_AUDIT = 'wh_mock_audit';
@@ -9,6 +10,7 @@ const STORAGE_SETTINGS = 'wh_mock_settings';
 
 export interface StoredMockUser extends User {
   password?: string;
+  deleted_at?: string | null;
 }
 
 // Initialize default mock database in localStorage if not exists
@@ -20,6 +22,13 @@ export function initMockDb() {
     users = [];
   }
 
+  let deletedEmails: string[] = [];
+  try {
+    deletedEmails = JSON.parse(localStorage.getItem(STORAGE_DELETED_USERS) || '[]');
+  } catch {
+    deletedEmails = [];
+  }
+
   const defaultUsers: StoredMockUser[] = [
     { id: 1, name: 'Admin', email: 'admin@whitehouse.com', password: 'admin123', role: 'ADMIN', status: 'ACTIVE', mobile: '+91 9876543210', created_at: '2026-08-01T00:00:00Z', updated_at: '2026-08-01T00:00:00Z' },
     { id: 2, name: 'Pawan Pawar', email: 'pawan@whitehouse.com', password: 'pawan123', role: 'USER', status: 'ACTIVE', mobile: '+91 9823012345', created_at: '2026-08-01T00:00:00Z', updated_at: '2026-08-01T00:00:00Z' },
@@ -28,15 +37,19 @@ export function initMockDb() {
     { id: 5, name: 'Sneha Patel', email: 'sneha@whitehouse.com', password: 'sneha123', role: 'USER', status: 'ACTIVE', mobile: '+91 9823045678', created_at: '2026-08-01T00:00:00Z', updated_at: '2026-08-01T00:00:00Z' },
   ];
 
-  // Guarantee all default users exist and have their passwords and roles set
+  // Guarantee all default non-deleted users exist and have passwords
   for (const defU of defaultUsers) {
+    const isDeleted = deletedEmails.includes(defU.email.toLowerCase());
+    if (isDeleted) continue; // Do not re-create if Admin intentionally deleted
+
     const existingIdx = users.findIndex((u) => u.email.toLowerCase() === defU.email.toLowerCase());
     if (existingIdx === -1) {
       users.push(defU);
     } else {
-      users[existingIdx].password = defU.password;
-      users[existingIdx].status = 'ACTIVE';
-      users[existingIdx].role = defU.role;
+      if (!users[existingIdx].deleted_at) {
+        users[existingIdx].password = defU.password;
+        users[existingIdx].role = defU.role;
+      }
     }
   }
   localStorage.setItem(STORAGE_USERS, JSON.stringify(users));
@@ -203,7 +216,7 @@ export function initMockDb() {
         action: 'SYSTEM_INITIALIZATION',
         entity_type: 'System',
         entity_id: 1,
-        details: 'Whitehouse Expense Management system initialized with seed database.',
+        details: 'Whitehouse Expense Management system initialized.',
         created_at: new Date().toISOString(),
         created_at_ist: formatISTDateTime(new Date()),
       },
@@ -218,6 +231,7 @@ export function handleMockApiRequest(endpoint: string, method: string = 'GET', b
 
   const url = endpoint.replace(/^\/api/, '');
   const users: StoredMockUser[] = JSON.parse(localStorage.getItem(STORAGE_USERS) || '[]');
+  const deletedEmails: string[] = JSON.parse(localStorage.getItem(STORAGE_DELETED_USERS) || '[]');
   const categories: Category[] = JSON.parse(localStorage.getItem(STORAGE_CATEGORIES) || '[]');
   const expenses: Expense[] = JSON.parse(localStorage.getItem(STORAGE_EXPENSES) || '[]');
   const auditLogs: AuditLog[] = JSON.parse(localStorage.getItem(STORAGE_AUDIT) || '[]');
@@ -229,11 +243,12 @@ export function handleMockApiRequest(endpoint: string, method: string = 'GET', b
   // 1. Auth Me
   if (url === '/auth/me') {
     if (currentUser) {
-      const dbUser = users.find((u) => u.id === currentUser.id);
-      if (dbUser && dbUser.status === 'ACTIVE') {
+      const dbUser = users.find((u) => (u.id === currentUser.id || u.email.toLowerCase() === currentUser.email.toLowerCase()) && !u.deleted_at);
+      if (dbUser) {
         const { password: _, ...clean } = dbUser;
         return { success: true, user: clean };
       }
+      return { success: true, user: currentUser };
     }
     return { success: false, message: 'Unauthorized' };
   }
@@ -248,7 +263,7 @@ export function handleMockApiRequest(endpoint: string, method: string = 'GET', b
       throw new Error('Please enter both email and password.');
     }
 
-    const user = users.find((u) => u.email.toLowerCase() === cleanEmail || (cleanEmail === 'admin' && u.role === 'ADMIN'));
+    const user = users.find((u) => (u.email.toLowerCase() === cleanEmail || (cleanEmail === 'admin' && u.role === 'ADMIN')) && !u.deleted_at);
 
     if (!user) {
       throw new Error('No registered account found with this email. Please register first.');
@@ -301,8 +316,16 @@ export function handleMockApiRequest(endpoint: string, method: string = 'GET', b
       throw new Error('Password must be at least 6 characters long.');
     }
 
-    if (users.find((u) => u.email.toLowerCase() === cleanEmail)) {
+    const existingUser = users.find((u) => u.email.toLowerCase() === cleanEmail && !u.deleted_at);
+    if (existingUser) {
       throw new Error('An account with this email already exists.');
+    }
+
+    // If previously deleted email, remove from deleted list
+    const delIdx = deletedEmails.indexOf(cleanEmail);
+    if (delIdx !== -1) {
+      deletedEmails.splice(delIdx, 1);
+      localStorage.setItem(STORAGE_DELETED_USERS, JSON.stringify(deletedEmails));
     }
 
     const newUser: StoredMockUser = {
@@ -400,9 +423,10 @@ export function handleMockApiRequest(endpoint: string, method: string = 'GET', b
     return { success: true, message: 'Category removed successfully!' };
   }
 
-  // 7. Users / Members
+  // 7. Users / Members (Filter out deleted)
   if (url === '/users' && method === 'GET') {
-    const usersWithStats = users.map((u) => {
+    const activeUsers = users.filter((u) => !u.deleted_at);
+    const usersWithStats = activeUsers.map((u) => {
       const uExp = expenses.filter((e) => e.paid_by_user_id === u.id);
       const totalPaid = uExp.reduce((acc, curr) => acc + curr.amount, 0);
       const { password: _, ...clean } = u;
@@ -413,9 +437,17 @@ export function handleMockApiRequest(endpoint: string, method: string = 'GET', b
   if (url === '/users' && method === 'POST') {
     const { name, email, mobile, password, role, status } = body;
     const cleanEmail = String(email || '').toLowerCase().trim();
-    if (users.find((u) => u.email.toLowerCase() === cleanEmail)) {
+    if (users.find((u) => u.email.toLowerCase() === cleanEmail && !u.deleted_at)) {
       throw new Error('A member with this email already exists.');
     }
+
+    // If previously deleted email, remove from deleted list
+    const delIdx = deletedEmails.indexOf(cleanEmail);
+    if (delIdx !== -1) {
+      deletedEmails.splice(delIdx, 1);
+      localStorage.setItem(STORAGE_DELETED_USERS, JSON.stringify(deletedEmails));
+    }
+
     const newUser: StoredMockUser = {
       id: Date.now(),
       name: String(name).trim(),
@@ -429,6 +461,20 @@ export function handleMockApiRequest(endpoint: string, method: string = 'GET', b
     };
     users.push(newUser);
     localStorage.setItem(STORAGE_USERS, JSON.stringify(users));
+
+    auditLogs.push({
+      id: Date.now(),
+      user_id: currentUser?.id || 1,
+      user_name: currentUser?.name || 'Admin',
+      action: 'ADMIN_CREATE_USER',
+      entity_type: 'User',
+      entity_id: newUser.id,
+      details: `Admin created member: ${newUser.name} (${newUser.email}) [${newUser.role}]`,
+      created_at: new Date().toISOString(),
+      created_at_ist: formatISTDateTime(new Date()),
+    });
+    localStorage.setItem(STORAGE_AUDIT, JSON.stringify(auditLogs));
+
     return { success: true, message: `Member ${name} added successfully!` };
   }
   if (url.startsWith('/users/') && url.includes('/status') && method === 'PATCH') {
@@ -449,12 +495,35 @@ export function handleMockApiRequest(endpoint: string, method: string = 'GET', b
     }
     return { success: true, message: 'Member updated successfully!' };
   }
+
+  // DELETE Member (Soft delete and persist to deleted list so it is NEVER restored)
   if (url.startsWith('/users/') && method === 'DELETE') {
     const id = parseInt(url.split('/')[2], 10);
-    const filtered = users.filter((u) => u.id !== id);
-    localStorage.setItem(STORAGE_USERS, JSON.stringify(filtered));
-    return { success: true, message: 'Member deleted!' };
+    const userToDelete = users.find((u) => u.id === id);
+    if (userToDelete) {
+      userToDelete.deleted_at = new Date().toISOString();
+      if (!deletedEmails.includes(userToDelete.email.toLowerCase())) {
+        deletedEmails.push(userToDelete.email.toLowerCase());
+        localStorage.setItem(STORAGE_DELETED_USERS, JSON.stringify(deletedEmails));
+      }
+      localStorage.setItem(STORAGE_USERS, JSON.stringify(users));
+
+      auditLogs.push({
+        id: Date.now(),
+        user_id: currentUser?.id || 1,
+        user_name: currentUser?.name || 'Admin',
+        action: 'ADMIN_DELETE_USER',
+        entity_type: 'User',
+        entity_id: id,
+        details: `Admin deleted member: ${userToDelete.name} (${userToDelete.email})`,
+        created_at: new Date().toISOString(),
+        created_at_ist: formatISTDateTime(new Date()),
+      });
+      localStorage.setItem(STORAGE_AUDIT, JSON.stringify(auditLogs));
+    }
+    return { success: true, message: 'Member deleted successfully' };
   }
+
   if (url.startsWith('/users/') && method === 'GET') {
     const id = parseInt(url.split('/')[2], 10);
     const u = users.find((x) => x.id === id);
@@ -571,6 +640,7 @@ export function handleMockApiRequest(endpoint: string, method: string = 'GET', b
 
   // 9. Reports
   if (url === '/reports/summary') {
+    const activeUsers = users.filter((u) => !u.deleted_at);
     const totalAmount = expenses.reduce((acc, curr) => acc + curr.amount, 0);
     const todayStr = getTodayISTDateString();
     const todayExpenses = expenses.filter((e) => e.expense_date === todayStr);
@@ -579,8 +649,8 @@ export function handleMockApiRequest(endpoint: string, method: string = 'GET', b
     return {
       success: true,
       summary: {
-        totalMembers: users.length,
-        activeMembers: users.filter((u) => u.status === 'ACTIVE').length,
+        totalMembers: activeUsers.length,
+        activeMembers: activeUsers.filter((u) => u.status === 'ACTIVE').length,
         totalExpensesCount: expenses.length,
         totalAmountPaid: totalAmount,
         todayExpenses: todayTotal,
@@ -592,8 +662,9 @@ export function handleMockApiRequest(endpoint: string, method: string = 'GET', b
   }
 
   if (url === '/reports/members') {
+    const activeUsers = users.filter((u) => !u.deleted_at);
     const grandTotal = expenses.reduce((acc, curr) => acc + curr.amount, 0) || 1;
-    const memberStats: MemberReportItem[] = users.map((u) => {
+    const memberStats: MemberReportItem[] = activeUsers.map((u) => {
       const uExp = expenses.filter((e) => e.paid_by_user_id === u.id);
       const totalPaid = uExp.reduce((acc, curr) => acc + curr.amount, 0);
       const todayStr = getTodayISTDateString();

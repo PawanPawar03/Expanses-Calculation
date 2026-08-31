@@ -19,13 +19,17 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [token, setToken] = useState<string | null>(() => localStorage.getItem('whitehouse_token'));
   const [user, setUser] = useState<User | null>(() => {
-    const saved = localStorage.getItem('whitehouse_user');
-    return saved ? JSON.parse(saved) : null;
+    try {
+      const saved = localStorage.getItem('whitehouse_user');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
   });
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
 
   useEffect(() => {
-    async function loadUser() {
+    async function validateSession() {
       if (token) {
         try {
           const res = await api.get('/auth/me');
@@ -33,14 +37,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setUser(res.user);
             localStorage.setItem('whitehouse_user', JSON.stringify(res.user));
           }
-        } catch (err) {
+        } catch (err: any) {
           console.error('Session validation error:', err);
-          logout();
+          // Only clear session if explicitly rejected with 401 Unauthorized
+          if (err.status === 401) {
+            logout();
+          }
         }
       }
-      setIsLoading(false);
     }
-    loadUser();
+    validateSession();
   }, [token]);
 
   const login = (newToken: string, newUser: User) => {

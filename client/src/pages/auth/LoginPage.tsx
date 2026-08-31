@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
@@ -8,7 +8,7 @@ import { Button } from '../../components/ui/Button';
 import { Lock, Mail, ArrowRight } from 'lucide-react';
 
 export const LoginPage: React.FC = () => {
-  const { login } = useAuth();
+  const { user, isAuthenticated, login } = useAuth();
   const { settings, showToast } = useApp();
   const navigate = useNavigate();
   const location = useLocation();
@@ -20,6 +20,19 @@ export const LoginPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   const from = (location.state as any)?.from?.pathname;
+
+  // Auto redirect if already logged in
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      if (from) {
+        navigate(from, { replace: true });
+      } else if (user.role === 'ADMIN') {
+        navigate('/admin', { replace: true });
+      } else {
+        navigate('/dashboard', { replace: true });
+      }
+    }
+  }, [isAuthenticated, user, from, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
