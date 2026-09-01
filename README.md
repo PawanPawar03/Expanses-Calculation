@@ -1,171 +1,115 @@
-# 🏠 WHITEHOUSE — Shared Household Expense Management System
+# 🏠 Whitehouse — Shared Household Expense Management System
 
-> **“Simple. Transparent. Shared Expenses.”**
-
-**Whitehouse** is a production-ready, modern, full-stack shared household expense management web application built with **React.js (Vite + TypeScript + Tailwind CSS)** and a **Node.js / Express + SQLite** backend with full Indian Standard Time (**IST / Asia/Kolkata**) timezone support, role-based access control (**Admin vs Member**), visual analytics, and audit history.
+A modern, full-stack, enterprise-grade **Expense Management Web Application** designed for tracking and managing shared household expenses among flatmates and families with real-time analytics in **Indian Standard Time (IST / Asia/Kolkata)**.
 
 ---
 
-## ✨ Key Features
+## ⚡ Tech Stack
 
-- 🔐 **Secure Role-Based Authentication & Authorization**
-  - **Admin**: Complete control over all members, master expenses, category management, editable site branding & settings, and immutable audit trails.
-  - **Member / User**: View profile, add shared expenses, inspect personal contributions, view member balances, explore reports and transaction details.
-- 🕒 **Strict Indian Standard Time (IST / Asia/Kolkata) Engine**
-  - Internal timestamps stored in UTC ISO format.
-  - Live header clock and all displayed dates/times formatted in `Asia/Kolkata` (e.g. `31 Aug 2026, 04:05 PM IST`).
-  - Dynamic today and monthly boundary calculations strictly adhere to Indian calendar dates (+05:30).
-- 💸 **Household Expense Tracking**
-  - Record item name (e.g., `Chapati & Dinner`), amount (₹ with decimal support), payer selection, category, shop/vendor, description, and custom/current IST date & time.
-  - Separate tracking for **Paid By** (payer) vs. **Added By** (logged-in creator).
-  - Multi-facet filters: Preset ranges (*Today, Yesterday, Last 7 Days, This Month, Last Month*), Member filter, Category filter, Amount sort, and instant search.
-  - 1-Click **CSV Export** for transaction logs and financial summaries.
-- 📊 **Dynamic Visual Analytics & Reports**
-  - **Member-wise Spending**: Interactive bar chart comparing member payments.
-  - **Category Breakdown**: Donut chart of spend across Food, Grocery, Rent, Electricity, Internet, etc.
-  - **Monthly Spend Velocity**: Year-to-date monthly trend line/area chart.
-  - **Daily Spending**: 14-day spending timeline.
-  - **Settlement Matrix**: Dynamic matrix calculating total paid, % share, today's spend, and month-to-date per member.
-- 📜 **Full Audit Logging System**
-  - Immutable activity tracking for additions, updates, deletions, and member status changes with user identity and exact IST timestamps.
-- 📱 **100% Responsive Design**
-  - Smoothly adapts from 4K/Desktop down to tablet and mobile screens with touch-friendly cards, drawer navigation, and compact layouts.
+* **Frontend**: React 18, TypeScript, Vite, Tailwind CSS, Lucide Icons, React Router (Hash Routing for static CDN/GitHub Pages compatibility)
+* **Backend API**: Python 3.12+, **Django 5.x**, **Django REST Framework (DRF)**, SimpleJWT, Gunicorn, Whitenoise
+* **Database**: **PostgreSQL 16** (Configured for **Amazon RDS** with Multi-AZ support)
+* **Cloud & Hosting**: **Amazon Web Services (AWS)** — Amazon RDS, AWS App Runner / EC2, Amazon S3, AWS CloudFront
+* **CI/CD & DevOps**: **GitHub Actions** workflows for automated testing, linting, Docker builds, and cloud deployment
 
 ---
 
-## 🛠️ Technology Stack
+## 📂 Project Architecture
 
-| Layer | Technologies |
-|---|---|
-| **Frontend** | React 18, Vite, TypeScript, Tailwind CSS, Lucide React, Recharts, date-fns, date-fns-tz |
-| **Backend** | Node.js, Express.js, TypeScript, better-sqlite3, jsonwebtoken, bcryptjs, zod |
-| **Database** | Embedded SQLite (`whitehouse.db`) with Foreign Keys, WAL journal mode, and index optimizations |
-| **Timezone** | `Asia/Kolkata` (IST, UTC+05:30) |
-
----
-
+```
+Expanses-Calculation/
+├── .github/
+│   └── workflows/
+│       ├── django-ci.yml             # Automated Django test pipeline on PR & push
+│       └── aws-deploy.yml            # Automated Docker build & AWS deploy workflow
+├── aws/
+│   └── README_AWS_DEPLOYMENT.md      # Step-by-step Amazon RDS & AWS deployment guide
+├── client/                           # React + TypeScript Frontend
+│   ├── src/
+│   │   ├── components/               # Layout, UI components, charts, modals
+│   │   ├── context/                  # AuthContext & AppContext (live state & polling)
+│   │   ├── pages/                    # Auth, User Dashboard, Admin Console pages
+│   │   ├── lib/                      # API client, IST time formatters, mock DB
+│   │   └── types/                    # TypeScript interfaces
+│   ├── package.json
+│   └── vite.config.ts
+├── server_django/                    # Django REST Framework Backend API
+│   ├── manage.py
+│   ├── requirements.txt
+│   ├── Dockerfile
+│   ├── docker-compose.yml            # Multi-container setup with PostgreSQL
+│   ├── .env.example
+│   ├── whitehouse_core/              # Django core settings, URLs, WSGI, ASGI
+│   └── apps/
+│       ├── authentication/           # Custom User model, SimpleJWT, Login, Register
+│       ├── categories/               # Expense categories (Food, Grocery, Rent, etc.)
+│       ├── expenses/                 # Shared expense transactions with IST tracking
+│       ├── members/                  # User/member management, stats, soft-delete
+│       ├── reports/                  # Aggregations, monthly & daily spending trends
+│       ├── audit/                    # Enterprise audit trails & logging
+│       └── settings_app/             # Dynamic app configuration
+└── README.md
+```
 
 ---
 
 ## 🚀 Quick Start Guide
 
-### 1. Prerequisites
-- **Node.js** (v18 or higher recommended)
-- **npm** (v9 or higher)
-
-### 2. Installation
-From the project root directory (`Expance Calculation/`):
-
+### 1. Run Django Backend with PostgreSQL (Docker Compose)
 ```bash
-# Install root, backend, and frontend dependencies
-npm run install:all
+cd server_django
+docker-compose up --build
+```
+The Django REST Framework API will run on `http://localhost:8000/api/` and PostgreSQL 16 on port `5432`.
+
+---
+
+### 2. Run Django Backend Locally (Python Virtualenv)
+```bash
+cd server_django
+python -m venv venv
+# Windows:
+venv\Scripts\activate
+# Linux/macOS:
+source venv/bin/activate
+
+pip install -r requirements.txt
+python manage.py migrate
+python manage.py seed_db
+python manage.py runserver 8000
 ```
 
-Or install separately:
+---
+
+### 3. Run React Frontend Locally
 ```bash
-# Server dependencies
-cd server
+cd client
 npm install
-
-# Client dependencies
-cd ../client
-npm install
-```
-
-### 3. Database Initialization & Seed
-Pre-populate the SQLite database with the demo household members, default categories, and sample shared expenses:
-
-```bash
-npm run seed
-```
-
-*(Or from `server/`: `npm run seed`)*
-
-### 4. Run in Development Mode
-Start both backend (Port 5000) and frontend (Port 3000) concurrently:
-
-```bash
 npm run dev
 ```
-
-- **Frontend Application**: `http://localhost:3000`
-- **Backend API**: `http://localhost:5000`
+The React development server will start on `http://localhost:5173`.
 
 ---
 
-## 🔌 API Endpoints Reference
+## 🔑 Default Initial Accounts (Seeded Clean)
 
-### Authentication (`/api/auth`)
-- `POST /api/auth/register` — Register a new household member (role `USER`).
-- `POST /api/auth/login` — Sign in with email and password, receives JWT token.
-- `GET /api/auth/me` — Retrieve currently authenticated user profile.
-- `POST /api/auth/change-password` — Change password for current logged-in user.
-
-### Expenses (`/api/expenses`)
-- `GET /api/expenses` — List expenses with filters (`preset`, `startDate`, `endDate`, `memberId`, `categoryId`, `sortBy`, `search`, `page`, `limit`).
-- `GET /api/expenses/:id` — Get single expense details with creator & payer metadata.
-- `POST /api/expenses` — Create a new expense (auto-captures IST date/time and creator).
-- `PUT /api/expenses/:id` — Edit existing expense (Admin or creator).
-- `DELETE /api/expenses/:id` — Soft delete expense (Admin only).
-
-### Members & Users (`/api/users`)
-- `GET /api/users` — List active household members with aggregate total paid sums.
-- `GET /api/users/:id` — Retrieve member profile, stats (total paid, this month, today), and member expense history.
-- `POST /api/users` — Admin create member with role and status.
-- `PUT /api/users/:id` — Update member profile.
-- `PATCH /api/users/:id/status` — Admin toggle `ACTIVE` / `INACTIVE` status.
-- `DELETE /api/users/:id` — Admin soft-delete member.
-
-### Reports & Analytics (`/api/reports`)
-- `GET /api/reports/summary` — Key KPI numbers (*Total Members, Active Members, Total Expenses, Today's Spend IST, This Month Spend IST, Total Paid Out*).
-- `GET /api/reports/members` — Overall member matrix table (*Member, Count, Total, This Month, Today, % Share*).
-- `GET /api/reports/categories` — Category-wise spend distribution.
-- `GET /api/reports/monthly` — 12-month spending trend for current year.
-- `GET /api/reports/daily` — 14-day spending timeline in IST.
-
-### Categories (`/api/categories`)
-- `GET /api/categories` — List active categories.
-- `POST /api/categories` — Admin add new category.
-- `PUT /api/categories/:id` — Admin edit category.
-- `DELETE /api/categories/:id` — Admin deactivate/delete category.
-
-### Audit Logs (`/api/audit-logs`)
-- `GET /api/audit-logs` — Admin list of all system actions, user names, old/new values, and IST timestamps.
-
-### Settings (`/api/settings`)
-- `GET /api/settings` — Get website name, tagline, currency symbol, registration policy.
-- `PUT /api/settings` — Admin update application settings and branding.
+| Account | Email / Username | Password | Role | Access Level |
+|---|---|---|---|---|
+| **Admin** | `admin@whitehouse.com` *(or `admin`)* | `admin123` | `ADMIN` | Full Administrative Console & Reports |
+| **Pawan** | `pawan@whitehouse.com` *(or `pawan`)* | `pawan123` | `USER` | Member Dashboard & Expense Logging |
 
 ---
 
-## 📦 Production Build & Deployment
+## ☁️ AWS & Amazon RDS Deployment
 
-### 1. Build Both Client and Server
+For step-by-step instructions on setting up **Amazon RDS PostgreSQL** and deploying via **AWS App Runner** or **AWS EC2**, refer to:
+👉 **[`aws/README_AWS_DEPLOYMENT.md`](./aws/README_AWS_DEPLOYMENT.md)**
+
+---
+
+## 🧪 Running Automated Tests
 ```bash
-npm run build
+cd server_django
+python manage.py test
 ```
-
-This compiles:
-- Backend TypeScript into `server/dist/`
-- Frontend React bundle into `client/dist/` (which the Express server automatically serves statically)
-
-### 2. Start Production Server
-```bash
-npm start
-```
-The server serves both the full REST API and the production-optimized React single page application on `http://localhost:5000`.
-
----
-
-## 🔒 Security & Best Practices
-
-- **Password Hashing**: BCrypt with salt rounds (10) for all user and admin accounts.
-- **JWT Authentication**: Stateles JSON Web Tokens with expiry and server-side user status verification on every request.
-- **Role Guards**: Backend API middleware strictly prevents normal members from accessing admin routes.
-- **Data Integrity**: Soft deletes prevent accidental loss of historical expense calculations.
-- **Audit Trails**: Critical actions record user ID, user name, event description, and timestamp.
-
----
-
-## 📄 License
-MIT License. Built for **Whitehouse Shared Household Expense Management**.
+All 5 test suites (Auth, JWT, Expenses, Reports, Health) will execute automatically.
