@@ -84,7 +84,7 @@ TEMPLATES = [
 WSGI_APPLICATION = 'whitehouse_core.wsgi.application'
 ASGI_APPLICATION = 'whitehouse_core.asgi.application'
 
-# Database Configuration with Fast 3-Second Timeout & Resilient Fallback
+# Database Configuration (Amazon RDS PostgreSQL with SQLite fallback)
 database_url = os.environ.get(
     'DATABASE_URL',
     'postgres://postgres:Pass123456@whitehouse.cbg2euuaan0n.ap-south-1.rds.amazonaws.com:5432/postgres'
@@ -95,9 +95,6 @@ DATABASES = {
         default=database_url,
         conn_max_age=60,
         conn_health_checks=False,
-        options={
-            'connect_timeout': 3,
-        }
     )
 }
 
