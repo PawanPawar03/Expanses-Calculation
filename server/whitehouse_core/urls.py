@@ -9,17 +9,23 @@ def health_check(request):
     now_ist = timezone.now().astimezone(ist)
     return JsonResponse({
         'status': 'healthy',
-        'app': 'Whitehouse Expense Management API (Django REST Framework)',
+        'message': 'Whitehouse Expense Management API is live on AWS Elastic Beanstalk!',
+        'database': 'Amazon RDS PostgreSQL',
         'ist_time': now_ist.strftime('%d %b %Y, %I:%M:%S %p IST'),
         'timezone': 'Asia/Kolkata',
     })
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
-    path('api/health/', health_check, name='health_check'),
+    # Root & Health Check
+    path('', health_check, name='root_health_check'),
+    path('health/', health_check, name='health_check_alt'),
+    path('api/health/', health_check, name='api_health_check'),
     path('api/health', health_check),
 
-    # App URLs
+    # Django Admin
+    path('admin/', admin.site.urls),
+
+    # App APIs
     path('api/auth/', include('apps.authentication.urls')),
     path('api/auth', include('apps.authentication.urls')),
 
