@@ -1,4 +1,5 @@
 import os
+import sys
 from pathlib import Path
 from datetime import timedelta
 import dj_database_url
@@ -6,6 +7,10 @@ import environ
 
 # Build paths inside the project
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Add root directory to sys.path
+if str(BASE_DIR) not in sys.path:
+    sys.path.insert(0, str(BASE_DIR))
 
 # Initialize environment variables
 env = environ.Env(
@@ -79,7 +84,7 @@ TEMPLATES = [
 WSGI_APPLICATION = 'whitehouse_core.wsgi.application'
 ASGI_APPLICATION = 'whitehouse_core.asgi.application'
 
-# Database Configuration (Amazon RDS PostgreSQL with resilient fallback)
+# Database Configuration with Fast 3-Second Timeout & Resilient Fallback
 database_url = os.environ.get(
     'DATABASE_URL',
     'postgres://postgres:Pass123456@whitehouse.cbg2euuaan0n.ap-south-1.rds.amazonaws.com:5432/postgres'
@@ -88,8 +93,11 @@ database_url = os.environ.get(
 DATABASES = {
     'default': dj_database_url.config(
         default=database_url,
-        conn_max_age=300,
-        conn_health_checks=True,
+        conn_max_age=60,
+        conn_health_checks=False,
+        options={
+            'connect_timeout': 3,
+        }
     )
 }
 
@@ -113,7 +121,7 @@ TIME_ZONE = 'Asia/Kolkata'
 USE_I18N = True
 USE_TZ = True
 
-# Static files (CSS, JavaScript, Images)
+# Static files
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
@@ -122,7 +130,6 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
-# Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # REST Framework Configuration
@@ -140,7 +147,7 @@ REST_FRAMEWORK = {
     'UNAUTHENTICATED_USER': None,
 }
 
-# SimpleJWT Authentication Configuration
+# SimpleJWT Configuration
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(days=30),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=90),
@@ -153,7 +160,7 @@ SIMPLE_JWT = {
     'USER_ID_CLAIM': 'user_id',
 }
 
-# CORS Configuration (Allows React Frontend from any host / domain)
+# CORS Configuration
 CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_HEADERS = [
