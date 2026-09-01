@@ -9,7 +9,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Initialize environment variables
 env = environ.Env(
-    DEBUG=(bool, True),
+    DEBUG=(bool, False),
     SECRET_KEY=(str, 'django-insecure-whitehouse-expense-secret-key-2026-ist'),
     ALLOWED_HOSTS=(list, ['*']),
     CORS_ALLOWED_ORIGINS=(list, []),
@@ -20,7 +20,7 @@ environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
 
 SECRET_KEY = env('SECRET_KEY')
 DEBUG = env('DEBUG')
-ALLOWED_HOSTS = env('ALLOWED_HOSTS')
+ALLOWED_HOSTS = ['*']
 
 # Application definition
 INSTALLED_APPS = [
@@ -79,11 +79,16 @@ TEMPLATES = [
 WSGI_APPLICATION = 'whitehouse_core.wsgi.application'
 ASGI_APPLICATION = 'whitehouse_core.asgi.application'
 
-# Database Configuration (PostgreSQL on Amazon RDS or SQLite fallback)
+# Database Configuration (Amazon RDS PostgreSQL with resilient fallback)
+database_url = os.environ.get(
+    'DATABASE_URL',
+    'postgres://postgres:Pass123456@whitehouse.cbg2euuaan0n.ap-south-1.rds.amazonaws.com:5432/postgres'
+)
+
 DATABASES = {
     'default': dj_database_url.config(
-        default=env('DATABASE_URL'),
-        conn_max_age=600,
+        default=database_url,
+        conn_max_age=300,
         conn_health_checks=True,
     )
 }
@@ -113,7 +118,7 @@ STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
-# Media files (for receipts / documents)
+# Media files
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
