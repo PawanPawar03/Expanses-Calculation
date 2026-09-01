@@ -1,1 +1,1 @@
-web: gunicorn whitehouse_core.wsgi:application --bind 0.0.0.0:5000 --workers 3
+web: gunicorn --bind 127.0.0.1:5000 --workers 3 whitehouse_core.wsgi:application
