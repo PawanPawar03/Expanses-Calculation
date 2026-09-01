@@ -6,7 +6,7 @@ A modern, full-stack, enterprise-grade **Expense Management Web Application** de
 
 ## ⚡ Tech Stack
 
-* **Frontend**: React 18, TypeScript, Vite, Tailwind CSS, Lucide Icons, React Router (Hash Routing for static CDN/GitHub Pages compatibility)
+* **Frontend**: React 18, TypeScript, Vite, Tailwind CSS, Lucide Icons, React Router
 * **Backend API**: Python 3.12+, **Django 5.x**, **Django REST Framework (DRF)**, SimpleJWT, Gunicorn, Whitenoise
 * **Database**: **PostgreSQL 16** (Configured for **Amazon RDS** with Multi-AZ support)
 * **Cloud & Hosting**: **Amazon Web Services (AWS)** — Amazon RDS, AWS App Runner / EC2, Amazon S3, AWS CloudFront
@@ -14,7 +14,7 @@ A modern, full-stack, enterprise-grade **Expense Management Web Application** de
 
 ---
 
-## 📂 Project Architecture
+## 📂 Clean Project Architecture
 
 ```
 Expanses-Calculation/
@@ -33,7 +33,7 @@ Expanses-Calculation/
 │   │   └── types/                    # TypeScript interfaces
 │   ├── package.json
 │   └── vite.config.ts
-├── server_django/                    # Django REST Framework Backend API
+├── server/                           # Django REST Framework Backend API
 │   ├── manage.py
 │   ├── requirements.txt
 │   ├── Dockerfile
@@ -57,7 +57,7 @@ Expanses-Calculation/
 
 ### 1. Run Django Backend with PostgreSQL (Docker Compose)
 ```bash
-cd server_django
+cd server
 docker-compose up --build
 ```
 The Django REST Framework API will run on `http://localhost:8000/api/` and PostgreSQL 16 on port `5432`.
@@ -66,7 +66,7 @@ The Django REST Framework API will run on `http://localhost:8000/api/` and Postg
 
 ### 2. Run Django Backend Locally (Python Virtualenv)
 ```bash
-cd server_django
+cd server
 python -m venv venv
 # Windows:
 venv\Scripts\activate
@@ -91,7 +91,7 @@ The React development server will start on `http://localhost:5173`.
 
 ---
 
-## 🔑 Default Initial Accounts (Seeded Clean)
+## 🔑 Default Clean Accounts
 
 | Account | Email / Username | Password | Role | Access Level |
 |---|---|---|---|---|
@@ -109,7 +109,7 @@ For step-by-step instructions on setting up **Amazon RDS PostgreSQL** and deploy
 
 ## 🧪 Running Automated Tests
 ```bash
-cd server_django
+cd server
 python manage.py test
 ```
 All 5 test suites (Auth, JWT, Expenses, Reports, Health) will execute automatically.

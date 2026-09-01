@@ -54,11 +54,11 @@ postgres://postgres:WhiteHousePass2026!@whitehouse-rds-postgres.c7xxxxxx.ap-sout
 - **Runtime**: `Python 3`
 - **Build command**:
   ```bash
-  pip install -r server_django/requirements.txt && python server_django/manage.py collectstatic --noinput
+  pip install -r server/requirements.txt && python server/manage.py collectstatic --noinput
   ```
 - **Start command**:
   ```bash
-  python server_django/manage.py migrate && python server_django/manage.py seed_db && gunicorn --chdir server_django whitehouse_core.wsgi:application --bind 0.0.0.0:8000 --workers 3
+  python server/manage.py migrate && python server/manage.py seed_db && gunicorn --chdir server whitehouse_core.wsgi:application --bind 0.0.0.0:8000 --workers 3
   ```
 - **Port**: `8000`
 
@@ -95,7 +95,7 @@ If you prefer full control on an AWS EC2 instance:
 4. Clone the repository:
    ```bash
    git clone https://github.com/PawanPawar03/Expanses-Calculation.git
-   cd Expanses-Calculation/server_django
+   cd Expanses-Calculation/server
    ```
 5. Create `.env` file with your RDS PostgreSQL URL:
    ```bash

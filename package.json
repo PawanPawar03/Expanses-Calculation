@@ -1,19 +1,13 @@
 {
   "name": "whitehouse-expense-management",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
-  "description": "Whitehouse - Shared Household Expense Management System",
+  "description": "Whitehouse - React + TypeScript + Django REST Framework + PostgreSQL (Amazon RDS) + AWS",
   "scripts": {
-    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
-    "dev:server": "npm --prefix server run dev",
     "dev:client": "npm --prefix client run dev",
-    "postinstall": "npm --prefix server install && npm --prefix client install",
-    "build": "npm --prefix server run build && npm --prefix client run build",
-    "start": "npm --prefix server start",
-    "seed": "npm --prefix server run seed",
-    "install:all": "npm install && npm --prefix server install && npm --prefix client install"
-  },
-  "devDependencies": {
-    "concurrently": "^8.2.2"
+    "build:client": "npm --prefix client run build",
+    "postinstall": "npm --prefix client install",
+    "test:server": "python server/manage.py test",
+    "seed:server": "python server/manage.py seed_db"
   }
 }
