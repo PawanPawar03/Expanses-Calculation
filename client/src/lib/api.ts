@@ -1,5 +1,7 @@
 import { handleMockApiRequest, initMockDb } from './mockApi';
 
+export const AWS_DEFAULT_BACKEND_URL = 'http://whitehouse-backend-env.eba-3yfvqujb.ap-south-1.elasticbeanstalk.com';
+
 export const isGitHubPagesStatic = (): boolean => {
   if (typeof window === 'undefined') return false;
   return window.location.hostname.includes('github.io');
@@ -16,7 +18,8 @@ export const getApiBaseUrl = (): string => {
   if (metaEnv?.VITE_API_URL) {
     return (metaEnv.VITE_API_URL as string).replace(/\/+$/, '');
   }
-  return '/api';
+  // Default to live AWS Elastic Beanstalk backend for instant multi-device sync
+  return AWS_DEFAULT_BACKEND_URL;
 };
 
 export class ApiError extends Error {
@@ -37,13 +40,6 @@ export async function request<T = any>(
   const apiBase = getApiBaseUrl();
   const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
 
-  // If on GitHub Pages and no custom remote backend is configured, use Mock DB directly
-  const hasCustomBackend = apiBase !== '/api';
-  if (isGitHubPagesStatic() && !hasCustomBackend) {
-    const bodyObj = options.body ? JSON.parse(options.body as string) : undefined;
-    return handleMockApiRequest(cleanEndpoint, options.method || 'GET', bodyObj);
-  }
-
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -63,24 +59,6 @@ export async function request<T = any>(
     const data = isJson ? await response.json().catch(() => ({})) : {};
 
     if (!response.ok) {
-      // If remote backend failed or returned 401/404 on login, fallback gracefully to mock DB
-      if (cleanEndpoint === '/auth/login' || cleanEndpoint === '/auth/me') {
-        const bodyObj = options.body ? JSON.parse(options.body as string) : undefined;
-        try {
-          const fallbackRes = handleMockApiRequest(cleanEndpoint, options.method || 'GET', bodyObj);
-          if (fallbackRes && fallbackRes.success) {
-            return fallbackRes as T;
-          }
-        } catch {
-          // Continue to throw server error if mock also fails
-        }
-      }
-
-      if ((response.status === 404 || response.status === 405 || !isJson) && !hasCustomBackend) {
-        const bodyObj = options.body ? JSON.parse(options.body as string) : undefined;
-        return handleMockApiRequest(cleanEndpoint, options.method || 'GET', bodyObj);
-      }
-
       if (response.status === 401 && cleanEndpoint !== '/auth/login' && cleanEndpoint !== '/auth/register') {
         localStorage.removeItem('whitehouse_token');
         localStorage.removeItem('whitehouse_user');
@@ -92,7 +70,7 @@ export async function request<T = any>(
 
     return data as T;
   } catch (err: any) {
-    // If network or server error, fallback to mock DB
+    // If backend is unreachable or offline, fallback to mock DB as offline safety
     if (typeof window !== 'undefined') {
       const bodyObj = options.body ? JSON.parse(options.body as string) : undefined;
       try {
